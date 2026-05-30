@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -90,7 +91,7 @@ def test_dogfood_creates_draft_for_afp_itself(tmp_path):
     drafts = list((tmp_path / ".afp" / "drafts").glob("*.json"))
     assert len(drafts) == 1
     report = json.loads(drafts[0].read_text())
-    assert report["subject_uri"] == "pkg:pypi/afp@0.2.0"
+    assert report["subject_uri"] == "pkg:github/Vasallo94/afp-protocol@0.2.0"
     assert report["harness"] == "afp-cli"
     assert report["tool_call_name"] == "afp dogfood"
 
@@ -138,6 +139,23 @@ def test_validate_manifest_ok(tmp_path):
 
     assert result.exit_code == 0, result.output
     assert "OK" in result.output
+
+
+def test_repo_manifest_matches_dogfood_subject():
+    manifest = json.loads(Path("afp.json").read_text(encoding="utf-8"))
+
+    assert manifest == {
+        "afp_version": "0.2",
+        "subject_uri": "pkg:github/Vasallo94/afp-protocol@0.2.0",
+        "sink": {
+            "type": "github_issues",
+            "repo": "Vasallo94/afp-protocol",
+            "label": "afp-report",
+        },
+        "redaction": "required",
+        "accepts_remote": True,
+        "schema_extensions": [],
+    }
 
 
 def test_validate_manifest_rejects_invalid_manifest(tmp_path):

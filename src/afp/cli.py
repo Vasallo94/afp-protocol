@@ -101,7 +101,7 @@ def dogfood(
 ):
     """Genera y deposita un field report sobre AFP mismo para dogfooding."""
     report = FieldReport.create(
-        subject_uri=f"pkg:pypi/afp@{__version__}",
+        subject_uri=f"pkg:github/Vasallo94/afp-protocol@{__version__}",
         goal=goal,
         expectation=expectation,
         observed=observed,

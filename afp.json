@@ -1,0 +1,12 @@
+{
+  "afp_version": "0.2",
+  "subject_uri": "pkg:github/Vasallo94/afp-protocol@0.2.0",
+  "sink": {
+    "type": "github_issues",
+    "repo": "Vasallo94/afp-protocol",
+    "label": "afp-report"
+  },
+  "redaction": "required",
+  "accepts_remote": true,
+  "schema_extensions": []
+}

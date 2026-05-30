@@ -58,8 +58,9 @@ uv run afp dogfood \
   --sink draft
 ```
 
-Por defecto, sin `afp.json` remoto, esto crea un borrador local en
-`.afp/drafts/`. Es el primer circuito de pruebas reales del protocolo.
+Por defecto, esto crea un borrador local en `.afp/drafts/`. El repo AFP declara
+su propio `afp.json`, así que los reportes revisados manualmente pueden
+promoverse después a issues de `Vasallo94/afp-protocol` usando el sink remoto.
 
 ## Regla de oro de seguridad
 
