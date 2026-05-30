@@ -1,6 +1,16 @@
 # AFP — Agent Feedback Protocol
 
-**Documento de diseño** · v0.1 · 2026-05-30
+**Documento de diseño** · v0.2 · 2026-05-30
+
+> **Changelog v0.1 → v0.2** (tras review externa de GPT-5.5):
+> - `tool_anchor` reemplazado por `subject_uri` apoyado en **PURL (ECMA-427)**.
+> - Esquema partido en **core (required)** + **extensiones (optional)** para no inflar el MVP.
+> - Nuevo eje **`fault_domain`** que separa fricción de culpa (no toda fricción es culpa de la tool).
+> - Cascada de descubrimiento endurecida: **sin manifiesto, nunca se auto-envía**; solo `local` spool o borrador con confirmación humana.
+> - Nueva **§ clasificación y minimización de PII** (la redacción no se limita a `inputs`).
+> - Nuevo **threat model** (§).
+> - **Bridge con OpenTelemetry** (`trace_id` + relación complementaria, no opuesta).
+> - Camino a spec **normativa** (RFC 2119 + JSON Schema + test vectors) marcado como Fase 1.5.
 
 ---
 
@@ -34,17 +44,28 @@ herramientas impulsado por uso real.
   de GUI con clics.
 - **Es agnóstico al harness.** Funciona igual desde Claude Code, Cursor, Cline,
   Aider o cualquier otro entorno agéntico.
-- **No es telemetría de errores.** Sentry y los logs reportan el *síntoma
-  técnico* (excepción en la línea 42). AFP reporta la *intención frustrada*:
-  qué quería lograr el agente, qué esperaba de la tool, y por qué su plan se
-  rompió.
+- **Es complementario a la telemetría, no un sustituto.** OpenTelemetry (semconv
+  GenAI) traza *ejecuciones*; Sentry reporta *excepciones técnicas*. AFP captura
+  algo que ninguno de los dos modela: la **intención frustrada** —qué quería
+  lograr el agente, qué esperaba de la tool, y por qué su plan se rompió—. Un
+  field report puede **derivarse de** un trace OTel y enlazarse a él
+  (`trace_id`), pero no lo reemplaza.
+
+### Posicionamiento frente a estándares existentes
+
+| Estándar | Qué resuelve | Qué NO resuelve (hueco de AFP) |
+|----------|--------------|-------------------------------|
+| **MCP** | Exponer e invocar tools (nombre, descripción, input schema). | Canal de feedback hacia el mantenedor de la tool. |
+| **A2A** | Comunicación agente-agente, discovery por Agent Cards. | Reportes de fricción de uso. |
+| **OpenTelemetry GenAI / OWASP AOS** | Trazar ejecuciones y spans de agentes. | Convertir intención frustrada en feedback mantenible. |
+| **PURL (ECMA-427)** | Identificar paquetes de forma universal. | (AFP lo **reutiliza**, no compite.) |
 
 ### Principio rector
 
 > El centro del protocolo no es el transporte, es **el dato**. Si el field
 > report y la identidad de la tool están bien definidos, el transporte y el
-> consumidor del dato son intercambiables. Diseñamos para el bucle completo,
-> pero el corazón es agnóstico.
+> consumidor del dato son intercambiables. Y siempre que sea posible, **nos
+> apoyamos en estándares existentes (PURL, OTel) en vez de reinventarlos**.
 
 ---
 
@@ -57,47 +78,45 @@ se construye y se prueba de forma independiente.
 ┌─────────────────────────────────────────────────────────────┐
 │  1. EL DATO — "Field Report"                                  │
 │     Esquema universal y agnóstico al transporte.              │
-│     Captura: intención, plan, expectativa, qué pasó, contexto │
+│     Core required (mínimo) + extensiones optional.            │
+│     Captura: intención, plan, expectativa, qué pasó, culpa.   │
 │     Es el corazón. Todo lo demás sirve a esto.                │
 ├─────────────────────────────────────────────────────────────┤
-│  2. LA IDENTIDAD — "Tool Anchor"                              │
-│     Cómo se nombra una herramienta de forma única y           │
-│     cómo el agente descubre DÓNDE mandar el reporte.          │
+│  2. LA IDENTIDAD — "subject_uri"                              │
+│     Identificador único y determinista, apoyado en PURL.      │
 │     Funciona para MCP, CLI, skill, API, GUI, lo que sea.      │
-│     Capa 1: manifiesto declarado por la tool (preferente)     │
-│     Capa 2: inferencia (repo del binario, package.json…)      │
+│     Capa 1: manifiesto declarado (afp.json) → opt-in.         │
+│     Capa 2: inferencia → SOLO local/draft, nunca auto-envío.  │
 ├─────────────────────────────────────────────────────────────┤
 │  3. EL TRANSPORTE — "Sinks"                                   │
 │     Por dónde viaja el reporte hasta su casa.                 │
-│     Intercambiable: issue de GitHub, fichero en repo,         │
-│     endpoint HTTP, carpeta local. El dato es el mismo.        │
+│     Sinks remotos = opt-in del mantenedor. El dato es igual.  │
 ├─────────────────────────────────────────────────────────────┤
 │  4. EL BUCLE — "Harvester"                                    │
-│     Agente-mantenedor que lee los reportes, deduplica,        │
-│     prioriza y abre issues/PRs de mejora. Cierra el círculo.  │
-│     NO es parte del estándar: es UN consumidor del estándar.  │
+│     Agente-mantenedor que lee, deduplica, prioriza y abre     │
+│     issues/PRs de mejora. NO es parte del estándar:           │
+│     es UN consumidor del estándar.                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Flujo de punta a punta
 
-1. Un agente (en cualquier harness) usa una herramienta y su **plan se rompe**:
-   la tool no se comportó como esperaba.
-2. El agente genera un **Field Report** (pieza 1): qué quería, qué esperaba, qué
-   recibió, en qué punto del plan se rompió.
-3. Resuelve la **identidad** de la tool (pieza 2): "esta tool vive aquí, su
-   buzón es este".
-4. Deposita el reporte por el **transporte** que ese buzón indique (pieza 3).
-5. Más tarde, el **Harvester** del dueño (pieza 4) recoge todos los reportes,
-   agrupa los repetidos, prioriza y genera trabajo de mejora real.
+1. Un agente (en cualquier harness) usa una herramienta y su **plan se rompe**.
+2. Genera un **Field Report** (pieza 1): qué quería, qué esperaba, qué recibió,
+   en qué punto del plan se rompió, y **de quién es la culpa** (`fault_domain`).
+3. Resuelve la **identidad** de la tool (pieza 2): `subject_uri` + buzón.
+4. **Si hay `afp.json`**, deposita por el transporte declarado (pieza 3). **Si
+   no**, lo guarda en spool local o como borrador para revisión humana — nunca
+   se auto-envía a un repo que no lo pidió.
+5. Más tarde, el **Harvester** del dueño (pieza 4) recoge, agrupa, prioriza y
+   genera trabajo de mejora real.
 
 ### Frontera del estándar
 
 El **estándar** son las piezas **1, 2 y el formato del transporte (3)**. El
 **Harvester (4) NO es el estándar** — es *un* consumidor de él. Pueden existir
-muchos Harvesters distintos (uno simple en bash, uno sofisticado con IA, el
-tuyo, el de otra empresa) y todos funcionan porque hablan el mismo formato.
-Igual que existen mil navegadores distintos que hablan HTTP.
+muchos Harvesters distintos y todos funcionan porque hablan el mismo formato,
+igual que mil navegadores distintos hablan HTTP.
 
 ---
 
@@ -105,262 +124,306 @@ Igual que existen mil navegadores distintos que hablan HTTP.
 
 Regla de oro: **captura la intención frustrada, no el error técnico.**
 
-### 3.1 Esquema
+El esquema se parte en **core (required)** —el mínimo válido, barato de
+generar— y **extensiones (optional)** —enriquecen el reporte cuando hay
+contexto disponible—. Un reporte mínimo válido tiene ~8 campos; el resto es
+opcional.
 
-**Bloque A — Identidad (a quién va dirigido)**
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `tool_anchor` | string (URI) | Identificador único de la herramienta (ver §4). |
-| `tool_version` | string | Versión observada de la tool. Sin esto, el mantenedor no sabe si ya lo arregló. |
-
-**Bloque B — La intención (lo que ningún sistema captura hoy)**
+### 3.1 Core (required)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `goal` | string | Qué intentaba lograr el agente, en lenguaje de producto. |
-| `plan_step` | string | En qué punto de su plan estaba. Ej: "Paso 3 de 5: tras resolver el objetivo, calcular el FOV". |
-| `expectation` | string | Qué esperaba que devolviera/hiciera la tool. |
-
-**Bloque C — Lo que pasó (la fricción)**
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `observed` | string | Qué recibió/ocurrió en realidad. |
-| `friction_type` | enum | Categoría acotada (clave para deduplicar). Ver §3.2. |
-| `severity` | enum | `blocked` \| `degraded` \| `cosmetic`. Ver §3.3. |
-| `workaround` | string \| null | Si encontró una salida, cuál. (Sugiere el fix al mantenedor.) |
-
-**Bloque D — Contexto reproducible**
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `inputs_redacted` | object | Argumentos usados, **con PII eliminada** (ver §3.4). |
-| `harness` | string | Desde dónde se generó (`claude-code`, `cursor`, `cline`, `aider`…). |
-| `timestamp` | string (ISO 8601) | Cuándo ocurrió. |
+| `schema_version` | string | Versión del esquema, ej. `afp/0.2`. |
 | `report_id` | string | Identificador único del reporte. |
-| `schema_version` | string | Versión del esquema AFP, ej. `afp/0.1`. |
+| `subject_uri` | string (URI) | Identidad única de la herramienta (ver §4). |
+| `goal` | string | Qué intentaba lograr el agente, en lenguaje de producto. |
+| `expectation` | string | Qué esperaba que devolviera/hiciera la tool. |
+| `observed` | string | Qué recibió/ocurrió en realidad. |
+| `friction_type` | enum | Qué tipo de fricción fue (§3.3). |
+| `fault_domain` | enum | De quién es la culpa (§3.4). **No toda fricción es culpa de la tool.** |
+| `severity` | enum | `blocked` \| `degraded` \| `cosmetic`. |
+| `timestamp` | string (ISO 8601) | Cuándo ocurrió. |
 
-### 3.2 Valores de `friction_type` (enum cerrado)
+### 3.2 Extensiones (optional)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `tool_version` | string | Versión observada de la tool. Sin esto el mantenedor no sabe si ya lo arregló. |
+| `plan_step` | string | En qué punto de su plan estaba. Ej: "Paso 3 de 5". |
+| `workaround` | string | Si encontró una salida, cuál. (Sugiere el fix.) |
+| `inputs_redacted` | object | Argumentos usados, redactados (§5). |
+| `harness` | string | Entorno agéntico (`claude-code`, `cursor`, `cline`, `aider`…). |
+| `harness_version` | string | Versión del harness. |
+| `agent_model` | string | Modelo que generó el reporte (ej. `claude-opus-4.8`). |
+| `tool_call_name` | string | Nombre concreto de la llamada/sub-herramienta invocada. |
+| `tool_call_id` | string | ID de la invocación, si el harness lo provee. |
+| `trace_id` | string | **Bridge OTel**: enlaza con la traza de la que se deriva este reporte. |
+| `contract_ref` | string | Referencia al contrato/schema que se esperaba cumplir. |
+| `evidence` | array | Fragmentos (redactados) que respaldan el reporte. |
+| `confidence` | enum | `high` \| `medium` \| `low`: cuán seguro está el agente de su diagnóstico. |
+| `reproducibility` | enum | `deterministic` \| `intermittent` \| `once`. |
+| `dedupe_key` | string | Clave de agrupación sugerida (si se omite, el Harvester la deriva). |
+
+### 3.3 `friction_type` — qué tipo de fricción (enum cerrado)
 
 - `bug` — la tool falla de forma demostrable.
 - `undocumented_behavior` — funciona, pero de forma no documentada/sorprendente.
 - `missing_capability` — falta una capacidad que el plan necesitaba.
 - `confusing_interface` — la interfaz/contrato indujo a error.
 - `wrong_output` — devolvió algo incorrecto o en formato inesperado.
-- `integration_mismatch` — falla al integrarse con el resto del sistema/otras tools.
+- `integration_mismatch` — falla al integrarse con el resto del sistema u otras tools.
 
-### 3.3 Valores de `severity` (enum cerrado)
+### 3.4 `fault_domain` — de quién es la culpa (enum cerrado)
 
-- `blocked` — el agente no pudo continuar su plan.
-- `degraded` — continuó, pero con esfuerzo o riesgo extra.
-- `cosmetic` — molestia menor, sin impacto en el resultado.
+Eje **separado** de `friction_type`. Evita que el protocolo asuma que cualquier
+fallo del agente es culpa de la tool. Un mantenedor confía mucho más en un flujo
+de reportes que sabe distinguir su propio bug de un mal uso del agente.
 
-### 3.4 Redacción de PII (regla dura)
-
-La redacción de PII **no es opcional**. Un agente reportando "fallé al procesar
-este email" podría filtrar el dato de un usuario al repositorio público de un
-tercero. El campo `inputs_redacted` **debe** estar redactado antes de enviarse.
-El manifiesto de la tool (`afp.json`) puede marcar `"redaction": "required"`
-para reforzarlo. Este es el principal riesgo legal del proyecto y una decisión
-de diseño, no un detalle de implementación.
+- `tool` — la herramienta se comportó mal.
+- `agent_misuse` — el agente la usó incorrectamente (input mal formado, orden equivocado).
+- `ambiguous_contract` — el contrato era ambiguo; culpa compartida tool↔agente.
+- `environment_issue` — fallo del entorno (red, dependencias, permisos del sistema).
+- `permission_denied` — faltaban permisos/credenciales.
+- `rate_limit` — limitación de tasa del proveedor.
+- `timeout` — expiró sin respuesta.
 
 ### 3.5 Universalidad del esquema (prueba de fuego)
 
 El mismo esquema, **sin añadir ni quitar campos**, sirve para cualquier tipo de
-herramienta. Lo único que cambia es el prefijo del `tool_anchor`:
+herramienta. Lo único que cambia es el `subject_uri` (ver §4).
 
 ```json
-// CLI
-{ "tool_anchor": "afp://cli/npm/eslint", "tool_version": "9.2.0",
+// CLI (subject_uri usa PURL)
+{ "schema_version": "afp/0.2", "report_id": "afp_01H...",
+  "subject_uri": "pkg:npm/eslint@9.2.0",
   "goal": "Auto-arreglar problemas de lint antes de commitear",
-  "plan_step": "3/6 — limpiar el código antes de pasar los tests",
   "expectation": "--fix corregiría las comillas y saldría con código 0",
   "observed": "Salió con código 1 sin explicar qué regla no era auto-fixable",
-  "friction_type": "confusing_interface", "severity": "degraded",
-  "workaround": "Parseé el stdout a mano para encontrar la regla",
-  "inputs_redacted": { "args": ["--fix", "src/"] }, "harness": "claude-code" }
+  "friction_type": "confusing_interface", "fault_domain": "tool",
+  "severity": "degraded", "timestamp": "2026-05-30T18:00:00Z",
+  "plan_step": "3/6 — limpiar antes de los tests",
+  "workaround": "Parseé el stdout a mano", "harness": "claude-code" }
 
 // Skill
-{ "tool_anchor": "afp://skill/superpowers/test-driven-development",
-  "tool_version": "5.1.0",
+{ "schema_version": "afp/0.2", "report_id": "afp_01H...",
+  "subject_uri": "afp:skill/superpowers/test-driven-development",
   "goal": "Aplicar TDD a un bugfix en una base sin tests previos",
-  "plan_step": "1/4 — escribir el test que falla primero",
   "expectation": "Cubriría el caso de codebase sin framework de test",
   "observed": "Asume que ya existe un test runner; no dice qué hacer si no hay",
-  "friction_type": "missing_capability", "severity": "blocked",
-  "workaround": "Configuré pytest por mi cuenta antes de seguir la skill",
-  "inputs_redacted": {}, "harness": "claude-code" }
+  "friction_type": "missing_capability", "fault_domain": "tool",
+  "severity": "blocked", "timestamp": "2026-05-30T18:01:00Z",
+  "workaround": "Configuré pytest por mi cuenta", "harness": "claude-code" }
 
-// GUI / plugin de clic
-{ "tool_anchor": "afp://app/figma/brand-exporter", "tool_version": "2.1.0",
-  "goal": "Exportar los assets de marca a PNG @2x",
-  "plan_step": "4/4 — exportar tras seleccionar el frame",
-  "expectation": "El botón 'Export' abriría el diálogo de exportación",
-  "observed": "El botón no responde si no hay un frame seleccionado, sin avisar",
-  "friction_type": "confusing_interface", "severity": "blocked",
-  "workaround": "Seleccioné un frame a ciegas y reintenté",
-  "inputs_redacted": { "action": "click", "target": "Export button" },
-  "harness": "cursor" }
-
-// API REST
-{ "tool_anchor": "afp://api/api.stripe.com/v1/charges",
-  "tool_version": "2024-06-20",
-  "goal": "Crear un cargo de prueba en modo sandbox",
-  "plan_step": "2/3 — cobrar tras validar el método de pago",
+// API REST (fault_domain distingue culpa)
+{ "schema_version": "afp/0.2", "report_id": "afp_01H...",
+  "subject_uri": "https://api.stripe.com/v1/charges",
+  "goal": "Crear un cargo de prueba en sandbox",
   "expectation": "Un error claro si falta el campo 'currency'",
   "observed": "Devolvió 400 con un mensaje genérico que no nombra el campo",
-  "friction_type": "wrong_output", "severity": "degraded",
-  "workaround": "Probé añadiendo campos uno a uno hasta acertar",
-  "inputs_redacted": { "amount": "[REDACTED]" }, "harness": "aider" }
+  "friction_type": "wrong_output", "fault_domain": "ambiguous_contract",
+  "severity": "degraded", "timestamp": "2026-05-30T18:02:00Z",
+  "inputs_redacted": { "amount": "[REDACTED]" }, "harness": "aider",
+  "trace_id": "otel-4bf92f3577b34da6a3ce929d0e0e4736" }
 ```
 
 ---
 
-## 4. Pieza 2 — El Tool Anchor (identidad y descubrimiento)
+## 4. Pieza 2 — Identidad y descubrimiento (`subject_uri`)
 
-Dos problemas distintos que deben resolverse por separado.
+### 4.1 Nombrar la tool de forma única (`subject_uri`)
 
-### 4.1 Nombrar la tool de forma única (`tool_anchor`)
+**Apoyado en estándares existentes.** AFP no inventa un esquema de nombres
+nuevo donde ya existe uno; **extiende PURL** y reutiliza URIs nativas:
 
-Esquema de nombres tipo URI, con un prefijo que indica el ecosistema:
+| Tipo de tool | `subject_uri` | Base |
+|--------------|---------------|------|
+| Paquete (CLI/lib) | `pkg:npm/eslint@9.2.0` · `pkg:pypi/ruff` | **PURL / ECMA-427** |
+| API HTTP | `https://api.stripe.com/v1/charges` | URL nativa |
+| Servidor MCP | `mcp://github.com/user/repo#tool_name` | esquema MCP |
+| Skill | `afp:skill/namespace/nombre` | esquema propio (no hay estándar previo) |
+| GUI / plugin | `afp:app/plataforma/plugin` | esquema propio |
+| Binario opaco | `afp:bin/sha256:<hash>` | último recurso |
 
-```
-afp://<tipo>/<localizador>[#<sub-herramienta>]
-```
+**Requisito clave:** el `subject_uri` es **determinista** — dos agentes
+distintos, en harness distintos, usando la misma tool generan el **mismo URI**.
+Sin esto, el Harvester no puede agrupar.
 
-| Tipo | Ejemplo | Localizador |
-|------|---------|-------------|
-| `mcp` | `afp://mcp/github.com/user/repo#nombre_tool` | repo + nombre de la tool MCP |
-| `cli` | `afp://cli/npm/eslint` · `afp://cli/pypi/ruff` | registro + nombre del paquete |
-| `skill` | `afp://skill/namespace/nombre-skill` | namespace + nombre de skill |
-| `api` | `afp://api/host/ruta` | host + ruta |
-| `app` | `afp://app/plataforma/plugin` | plataforma + plugin |
-| `bin` | `afp://bin/sha256:<hash>` | hash del binario (último recurso) |
-
-**Requisito clave: el `tool_anchor` es determinista.** Dos agentes distintos, en
-harness distintos, usando la misma tool, generan **el mismo anchor**. Sin esto,
-el Harvester no puede agrupar nada.
-
-### 4.2 Descubrir el buzón (cascada de 2 capas)
-
-El agente prueba de arriba a abajo:
+### 4.2 Descubrir el buzón (cascada endurecida)
 
 ```
-Capa 1 (preferente): MANIFIESTO DECLARADO — "afp.json"
+Capa 1 (preferente): MANIFIESTO DECLARADO — "afp.json"  → OPT-IN
   La tool publica un fichero estándar que declara su buzón y esquema.
   → MCP:    en su capability/metadata.
   → CLI:    campo en package.json / pyproject.toml.
   → Repo:   /.well-known/afp.json o /afp.json en la raíz.
   → Skill:  campo en el frontmatter de la skill.
+  Solo aquí se permiten sinks REMOTOS (issues, http).
 
-Capa 2 (fallback): INFERENCIA — valor desde el día uno
-  Si no hay manifiesto, el agente deduce la casa de lo que ve:
-  - campo "bugs"/"repository" de package.json
-  - git remote del binario
-  - host de la API
-  → Deposita en el canal genérico de ese sitio (p.ej. GitHub issues).
+Capa 2 (fallback): SIN MANIFIESTO  → NUNCA AUTO-ENVÍO
+  Si no hay afp.json, el agente puede resolver la identidad por inferencia
+  (campo "bugs"/"repository", git remote, host de la API) PERO:
+    - NO abre issues ni hace POST a nadie.
+    - Guarda el reporte en SPOOL LOCAL, o
+    - genera un BORRADOR que requiere confirmación humana explícita
+      antes de enviarse a ningún sitio.
 ```
 
-La **Capa 2 (inferencia)** es lo que rompe el problema del huevo y la gallina:
-AFP aporta valor incluso para tools que no saben que existe. La adopción
-explícita (Capa 1) llega después, atraída por ese valor.
+> **Por qué este endurecimiento (cambio clave de v0.2):** auto-abrir issues en
+> repos que no han adoptado AFP se percibe como **spam automatizado de agentes**
+> y es un vector de abuso. La adopción remota debe ser siempre **opt-in del
+> mantenedor** vía `afp.json`. La inferencia sigue dando valor (el reporte se
+> genera y se encola), pero el envío a terceros nunca es automático.
 
-> **Descartado del núcleo (YAGNI):** un "sumidero comunitario" central (registro
-> neutral que recibe reportes anónimos sobre cualquier tool) se consideró y se
-> descartó del alcance v1. Rompe el carácter descentralizado del resto del
-> diseño e introduce problemas de gobernanza, coste de operación, spam,
-> envenenamiento y confianza que ninguna otra pieza tiene. Queda como posible
-> extensión futura opcional, de la que el protocolo **no depende**.
+> **Descartado del núcleo (YAGNI):** un "sumidero comunitario" central se
+> consideró y se descartó: rompe la descentralización e introduce gobernanza,
+> coste, spam, poisoning y confianza que ninguna otra pieza tiene. Posible
+> extensión futura opcional de la que el protocolo **no depende**.
 
 ### 4.3 Formato del manifiesto `afp.json`
 
 ```json
 {
-  "afp_version": "0.1",
-  "tool_anchor": "afp://mcp/github.com/user/nadir-astro",
+  "afp_version": "0.2",
+  "subject_uri": "mcp://github.com/user/nadir-astro",
   "sink": { "type": "github_issues", "repo": "user/nadir-astro", "label": "afp-report" },
   "redaction": "required",
+  "accepts_remote": true,
   "schema_extensions": []
 }
 ```
 
 ---
 
-## 5. Pieza 3 — Transporte (Sinks)
+## 5. Privacidad: clasificación y minimización de datos
+
+La redacción **no se limita** a `inputs_redacted`. Campos de texto libre como
+`goal`, `observed`, `workaround` y `plan_step` también pueden filtrar datos
+sensibles. El protocolo exige **minimización de datos por defecto**.
+
+### 5.1 Clasificación de campos
+
+| Clase | Significado | Tratamiento |
+|-------|-------------|-------------|
+| **público** | Seguro para repos públicos (`friction_type`, `severity`, `subject_uri`…). | Se envía tal cual. |
+| **privado** | Puede contener detalles operativos (`harness`, `tool_call_name`). | Se envía solo a sinks privados o con consentimiento. |
+| **sensible** | Texto libre que puede contener PII (`goal`, `observed`, `workaround`, `inputs_redacted`). | **Redacción obligatoria** antes de enviar. |
+| **prohibido** | Nunca se incluye (secretos, tokens, credenciales, PII directa). | Filtrado duro; si se detecta, se aborta el envío. |
+
+### 5.2 Reglas
+
+1. **Redacción obligatoria** de la clase *sensible* antes de cualquier envío
+   (`"redaction": "required"` en `afp.json` lo refuerza).
+2. **Filtrado duro** de la clase *prohibido*: detección de secretos/PII; si se
+   detecta, el reporte no se envía.
+3. **Minimización por defecto**: el agente incluye lo mínimo necesario para que
+   el reporte sea accionable, no todo el contexto disponible.
+4. Es el **principal riesgo legal** del proyecto y una decisión de diseño.
+
+---
+
+## 6. Pieza 3 — Transporte (Sinks)
 
 No se inventa canal nuevo; se reutilizan los existentes. El `afp.json` declara
-cuál usa la tool. El **dato es idéntico**; solo cambia el sobre.
+cuál. **Los sinks remotos requieren opt-in del mantenedor.** El dato es
+idéntico; solo cambia el sobre.
 
-| Tipo de sink | Comportamiento | Estado |
-|--------------|----------------|--------|
-| `github_issues` / `gitlab_issues` | Abre un issue con plantilla y etiqueta `afp-report`. | v1 |
-| `file` | Anexa el reporte a un fichero en el repo (p.ej. `.afp/reports.jsonl`) vía PR/commit. | v1 |
-| `local` | Carpeta local, para tools en desarrollo. | v1 |
-| `http` | POST a un endpoint que el dueño exponga. | Futuro |
+| Tipo de sink | Comportamiento | Requiere `afp.json` | Estado |
+|--------------|----------------|---------------------|--------|
+| `local` | Spool en carpeta local (`.afp/reports.jsonl`). | No | v1 |
+| `draft` | Borrador para confirmación humana antes de enviar. | No | v1 |
+| `github_issues` / `gitlab_issues` | Issue con plantilla y etiqueta `afp-report`. | **Sí** | v1 |
+| `file` | Anexa a un fichero en el repo vía PR/commit. | **Sí** | v1 |
+| `http` | POST a un endpoint del dueño. | **Sí** | Futuro |
 
 ---
 
-## 6. Pieza 4 — Harvester (el bucle)
+## 7. Pieza 4 — Harvester (el bucle)
 
 El agente-mantenedor que cierra el ciclo. **No es parte del estándar**: es una
-herramienta de referencia que *consume* el estándar. Su trabajo:
+herramienta de referencia que *consume* el estándar.
 
-1. **Lee** los reportes acumulados (issues / fichero / endpoint).
-2. **Deduplica y agrupa** por `tool_anchor` + `friction_type` + similitud
-   semántica. Ej: "14 agentes bloqueados en lo mismo".
-3. **Prioriza** por frecuencia × severidad.
-4. **Genera trabajo accionable**: un issue resumen, o directamente un borrador
-   de PR si el `workaround` sugiere el fix.
+1. **Lee** los reportes acumulados.
+2. **Deduplica y agrupa** por `subject_uri` + `friction_type` + `fault_domain` +
+   `dedupe_key`/similitud semántica. Ej: "14 agentes bloqueados en lo mismo".
+3. **Prioriza** por frecuencia × severidad, ponderando por `confidence` y
+   filtrando `fault_domain` ≠ `tool` (no es trabajo del mantenedor).
+4. **Genera trabajo accionable**: issue resumen, o borrador de PR si el
+   `workaround` sugiere el fix.
 
-Que `friction_type` y `severity` sean enums cerrados es lo que hace **barato**
-este paso: agrupar vocabulario controlado es trivial; agrupar texto libre es un
-problema de IA caro y ruidoso.
-
----
-
-## 7. Alcance de la Fase 1 (MVP del estándar)
-
-**Dentro de Fase 1:**
-
-- El esquema del **Field Report** (§3). ✅ definido
-- El esquema de **`tool_anchor`** + el fichero **`afp.json`** + la cascada de
-  descubrimiento de 2 capas (§4). ✅ definido
-- Una **implementación de referencia mínima**: una skill/librería que enseñe a
-  un agente a *generar* un field report bien formado y depositarlo vía `file` o
-  `github_issues`.
-
-**Fuera de Fase 1 (documentado como horizonte):**
-
-- El **Harvester** completo (§6).
-- El sink `http` (§5).
-- La extensión *in-band* de MCP (adjuntar el reporte como metadato en la propia
-  respuesta MCP).
-- El **sumidero comunitario** (§4.2).
+Que `friction_type`, `fault_domain` y `severity` sean enums cerrados es lo que
+hace **barato** este paso: agrupar vocabulario controlado es trivial; agrupar
+texto libre es un problema de IA caro y ruidoso.
 
 ---
 
-## 8. Decisiones de diseño y su porqué
+## 8. Threat model
+
+Un canal por el que agentes depositan reportes sobre herramientas de terceros es
+un objetivo de abuso. Riesgos y mitigaciones:
+
+| Amenaza | Descripción | Mitigación |
+|---------|-------------|------------|
+| **Spam automatizado** | Agentes abriendo issues masivos en repos no adoptantes. | Sinks remotos solo opt-in (`afp.json`); sin manifiesto → local/draft. |
+| **Poisoning / reportes falsos** | Inundar con reportes falsos para sesgar prioridades o difamar una tool. | `confidence`, `fault_domain`, dedupe; el Harvester pondera, no obedece. |
+| **Prompt injection vía reporte** | Un reporte malicioso que intenta manipular al Harvester (que es un LLM). | Tratar el contenido del reporte como **datos no confiables**, nunca como instrucciones. |
+| **Exfiltración por issues públicos** | Filtrar PII/secretos a un repo público vía el reporte. | Clasificación de campos (§5), filtrado duro de *prohibido*, redacción obligatoria. |
+| **Abuso de identidad de tools** | `subject_uri` falsificado para dirigir reportes a la víctima equivocada. | URI determinista + verificación contra el `afp.json` declarado por el dueño. |
+| **Fuga de secretos en `inputs`/`evidence`** | Tokens/credenciales en argumentos. | Detección de secretos en clase *prohibido*; abortar envío si se detecta. |
+
+---
+
+## 9. Alcance por fases
+
+### Fase 1 — MVP del estándar
+
+- Esquema del **Field Report** core + extensiones (§3). ✅ definido
+- `subject_uri` (PURL-based) + `afp.json` + cascada endurecida (§4). ✅ definido
+- Clasificación/minimización de PII (§5). ✅ definido
+- **Implementación de referencia mínima**: una skill/CLI que enseñe a un agente
+  a generar un field report bien formado y depositarlo vía `local`/`draft` o,
+  si hay `afp.json`, `github_issues`/`file`.
+
+### Fase 1.5 — Volverla normativa
+
+- **RFC 2119** (MUST/SHOULD/MAY), **JSON Schema** del field report y del
+  `afp.json`, ejemplos válidos/ inválidos, **test vectors**, required/optional,
+  versionado y compatibilidad. (Frontera entre "diseño" y "estándar".)
+
+### Fuera de alcance inicial (horizonte)
+
+- **Harvester** completo (§7), sink `http`, extensión *in-band* de MCP,
+  sumidero comunitario.
+
+---
+
+## 10. Decisiones de diseño y su porqué
 
 | Decisión | Razón |
 |----------|-------|
 | El dato es el centro, no el transporte | Permite que MCP, CLI, skill, API y GUI compartan un mismo protocolo. |
-| `friction_type` y `severity` como enums cerrados | Hace barata la deduplicación/agrupación del Harvester. |
-| Redacción de PII obligatoria | Principal riesgo legal; evita filtrar datos de usuario a repos de terceros. |
-| `tool_anchor` determinista | Sin identidad estable, no hay forma de agrupar reportes de agentes distintos. |
-| Cascada manifiesto → inferencia | La inferencia da valor desde el día uno y rompe el bloqueo de adopción. |
-| Sumidero comunitario descartado | Rompe la descentralización; introduce gobernanza, coste, spam y confianza. |
+| Enums cerrados (`friction_type`, `fault_domain`, `severity`) | Hace barata la deduplicación/agrupación del Harvester. |
+| `fault_domain` separado de `friction_type` | No toda fricción es culpa de la tool; genera confianza del mantenedor. |
+| Core required + extensiones optional | Reporte mínimo barato de generar = más adopción; el resto enriquece. |
+| `subject_uri` apoyado en PURL | Reutilizar un estándar ECMA existente baja la fricción de adopción. |
+| Redacción/minimización de PII | Principal riesgo legal; evita filtrar datos a repos de terceros. |
+| Sin manifiesto → nunca auto-envío | Auto-abrir issues = spam y abuso; adopción remota siempre opt-in. |
+| Bridge OTel (`trace_id`) en vez de "anti-telemetría" | AFP es complementario: feedback derivable de traces, no un sustituto. |
+| Sumidero comunitario descartado | Rompe la descentralización; gobernanza/coste/spam/confianza. |
 | Harvester fuera del estándar | Permite múltiples consumidores del mismo formato, como navegadores sobre HTTP. |
 
 ---
 
-## 9. Glosario
+## 11. Glosario
 
 - **AFP** — Agent Feedback Protocol (nombre de trabajo).
-- **Field report** — la unidad básica de información: un "parte de campo" que un
-  agente deja tras encontrar fricción con una herramienta.
-- **Tool anchor** — identificador URI único y determinista de una herramienta.
-- **Sink** — el canal/destino por el que viaja un field report a su casa.
-- **Harvester** — agente que consume los reportes acumulados y genera mejoras.
-- **Harness** — el entorno agéntico desde el que opera el LLM (Claude Code,
-  Cursor, Cline, Aider…).
+- **Field report** — la unidad básica: un "parte de campo" que un agente deja
+  tras encontrar fricción con una herramienta.
+- **`subject_uri`** — identificador URI único y determinista de una tool, basado
+  en PURL/URIs nativas donde sea posible.
+- **`friction_type`** — qué tipo de fricción ocurrió.
+- **`fault_domain`** — de quién es la culpa (tool / agente / entorno / contrato).
+- **Sink** — el canal/destino por el que viaja un field report.
+- **Harvester** — agente que consume los reportes y genera mejoras.
+- **Harness** — el entorno agéntico (Claude Code, Cursor, Cline, Aider…).
+- **PURL** — Package URL, norma ECMA-427 para identificar paquetes.
+- **OTel** — OpenTelemetry; AFP enlaza con sus traces vía `trace_id`.
