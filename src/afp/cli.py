@@ -5,6 +5,7 @@ import typer
 
 from afp import __version__
 from afp.discovery import discover
+from afp.enums import FaultDomain, FrictionType, Severity
 from afp.manifest import ManifestInvalid, load_manifest
 from afp.models import FieldReport
 from afp.redact import SecretDetected
@@ -90,9 +91,9 @@ def dogfood(
     goal: str = typer.Option(..., "--goal", help="Qué intentabas lograr usando AFP"),
     expectation: str = typer.Option(..., "--expectation", help="Qué esperabas que hiciera AFP"),
     observed: str = typer.Option(..., "--observed", help="Qué ocurrió realmente"),
-    friction_type: str = typer.Option(..., "--friction-type", help="Tipo de fricción AFP"),
-    fault_domain: str = typer.Option(..., "--fault-domain", help="Dominio probable de la causa"),
-    severity: str = typer.Option(..., "--severity", help="Impacto de la fricción"),
+    friction_type: FrictionType = typer.Option(..., "--friction-type", help="Tipo de fricción AFP"),
+    fault_domain: FaultDomain = typer.Option(..., "--fault-domain", help="Dominio probable de la causa"),
+    severity: Severity = typer.Option(..., "--severity", help="Impacto de la fricción"),
     dir_: Path = typer.Option(Path("."), "--dir", help="Directorio donde buscar afp.json"),
     sink: str | None = typer.Option(None, "--sink", help="Sink solicitado (default: draft)"),
     plan_step: str | None = typer.Option(None, "--plan-step", help="Paso del plan donde falló"),
@@ -104,9 +105,9 @@ def dogfood(
         goal=goal,
         expectation=expectation,
         observed=observed,
-        friction_type=friction_type,
-        fault_domain=fault_domain,
-        severity=severity,
+        friction_type=friction_type.value,
+        fault_domain=fault_domain.value,
+        severity=severity.value,
         plan_step=plan_step,
         workaround=workaround,
         harness="afp-cli",

@@ -111,6 +111,15 @@ def test_dogfood_rejects_pii_and_writes_no_draft(tmp_path):
     assert not (tmp_path / ".afp" / "drafts").exists()
 
 
+def test_dogfood_help_shows_enum_values():
+    result = runner.invoke(app, ["dogfood", "--help"], terminal_width=200)
+
+    assert result.exit_code == 0, result.output
+    assert "missing_capability" in result.output
+    assert "agent_misuse" in result.output
+    assert "degraded" in result.output
+
+
 def test_validate_manifest_ok(tmp_path):
     manifest = tmp_path / "afp.json"
     manifest.write_text(json.dumps({
