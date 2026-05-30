@@ -12,14 +12,63 @@ class GitHubIssuesSink(Sink):
         self.label = label
 
     def _title(self, report: dict) -> str:
-        ft = report.get("friction_type", "friction")
-        subj = report.get("subject_uri", "unknown-tool")
-        return f"[AFP/{ft}] {subj}"
+        severity = report.get("severity", "unknown")
+        goal = str(report.get("goal") or report.get("subject_uri") or "Field report")
+        goal = " ".join(goal.split())
+        if len(goal) > 80:
+            goal = goal[:77].rstrip() + "..."
+        return f"[AFP/{severity}] {goal}"
 
     def _body(self, report: dict) -> str:
+        subject = report.get("subject_uri", "unknown")
+        friction_type = report.get("friction_type", "unknown")
+        fault_domain = report.get("fault_domain", "unknown")
+        severity = report.get("severity", "unknown")
+        goal = report.get("goal", "")
+        expectation = report.get("expectation", "")
+        observed = report.get("observed", "")
+        workaround = report.get("workaround")
+        plan_step = report.get("plan_step")
+
+        sections = [
+            "## AFP Field Report",
+            "",
+            f"- Subject: `{subject}`",
+            f"- Type: `{friction_type}`",
+            f"- Fault domain: `{fault_domain}`",
+            f"- Severity: `{severity}`",
+        ]
+        if plan_step:
+            sections.append(f"- Plan step: {plan_step}")
+        sections.extend([
+            "",
+            "### Goal",
+            "",
+            str(goal),
+            "",
+            "### Expected",
+            "",
+            str(expectation),
+            "",
+            "### Observed",
+            "",
+            str(observed),
+        ])
+        if workaround:
+            sections.extend(["", "### Workaround", "", str(workaround)])
+        sections.extend([
+            "",
+            "<details>",
+            "<summary>Raw AFP JSON</summary>",
+            "",
+            "```json",
+            json.dumps(report, ensure_ascii=False, indent=2),
+            "```",
+            "",
+            "</details>",
+        ])
         return (
-            "Field report generado por un agente vía AFP.\n\n"
-            "```json\n" + json.dumps(report, ensure_ascii=False, indent=2) + "\n```"
+            "\n".join(sections)
         )
 
     def submit(self, report: dict) -> str:
