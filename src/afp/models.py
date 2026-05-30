@@ -67,6 +67,8 @@ class FieldReport:
     @classmethod
     def from_dict(cls, data: dict) -> "FieldReport":
         data = dict(data)
+        if "subject_uri" in data:
+            validate_subject_uri(data["subject_uri"])
         for name, enum_cls in _ENUM_FIELDS.items():
             if data.get(name) is not None:
                 data[name] = enum_cls(data[name])

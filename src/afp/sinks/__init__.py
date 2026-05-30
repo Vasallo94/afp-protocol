@@ -5,6 +5,7 @@ from afp.sinks.github import GitHubIssuesSink
 from afp.sinks.local import LocalSink
 
 LOCAL_SINKS = {"local", "draft"}
+# github_issues está implementado; gitlab_issues/file/http son placeholders de Fase 1b.
 REMOTE_SINKS = {"github_issues", "gitlab_issues", "file", "http"}
 
 

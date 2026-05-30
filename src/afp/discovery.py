@@ -36,6 +36,6 @@ def discover(start_dir: Path) -> RoutingDecision:
 
     manifest = load_manifest(manifest_path)
     allowed = list(LOCAL_SINKS)
-    if manifest.accepts_remote:
+    if manifest.accepts_remote and manifest.sink["type"] not in allowed:
         allowed.append(manifest.sink["type"])
     return RoutingDecision(True, manifest, allowed)

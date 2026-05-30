@@ -27,3 +27,22 @@ def test_assert_no_secrets_raises():
     report = {"observed": "AKIAIOSFODNN7EXAMPLE"}
     with pytest.raises(SecretDetected):
         assert_no_secrets(report)
+
+
+@pytest.mark.parametrize("text", [
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dQw4w9WgXcQabcd",  # JWT
+    "Authorization: Bearer abcdefghijklmnopqrstuvwx1234",                 # Bearer
+    "api_key=ABCD1234EFGH5678",                                          # key=value
+    "password: hunter2supersecret",                                      # key=value
+])
+def test_contains_secret_true_extended(text):
+    assert contains_secret(text) is True
+
+
+@pytest.mark.parametrize("text", [
+    "el token expira mañana",          # 'token' sin separador := ni valor
+    "password reset link en el email", # 'password' seguido de palabra, no de valor
+    "necesito tu api para integrarlo", # no hay keyword de secreto completa
+])
+def test_contains_secret_false_near_miss(text):
+    assert contains_secret(text) is False

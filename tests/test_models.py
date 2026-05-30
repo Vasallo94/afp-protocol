@@ -1,3 +1,5 @@
+import pytest
+
 from afp.enums import FaultDomain, FrictionType, Severity
 from afp.models import FieldReport
 
@@ -35,3 +37,11 @@ def test_round_trip_from_dict():
     r2 = FieldReport.from_dict(d)
     assert r2.to_dict() == d
     assert r2.workaround == "parsear a mano"
+
+
+def test_from_dict_rejects_invalid_subject_uri():
+    from afp.identity import InvalidSubjectUri
+    d = FieldReport.create(**_kwargs()).to_dict()
+    d["subject_uri"] = "not-a-uri"
+    with pytest.raises(InvalidSubjectUri):
+        FieldReport.from_dict(d)
