@@ -1,0 +1,6 @@
+{
+  "schema_version": "afp/0.2",
+  "report_id": "afp_test0002",
+  "subject_uri": "pkg:npm/eslint@9.2.0",
+  "goal": "Falta expectation, observed, friction_type, etc."
+}
