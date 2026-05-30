@@ -273,10 +273,9 @@ def test_invalid_vector_fails():
 Run: `uv run pytest tests/test_schema_file.py -v`
 Expected: FAIL con `FileNotFoundError` (el schema aún no existe)
 
-- [ ] **Step 3: Escribir el JSON Schema**
+- [ ] **Step 3: Escribir el JSON Schema** → fichero `src/afp/schema/field_report.schema.json`
 
 ```json
-// src/afp/schema/field_report.schema.json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://afp.dev/schema/field_report.schema.json",
@@ -327,10 +326,11 @@ Expected: FAIL con `FileNotFoundError` (el schema aún no existe)
 }
 ```
 
-- [ ] **Step 4: Escribir los vectores de prueba**
+- [ ] **Step 4: Escribir los vectores de prueba** → ficheros `tests/vectors/valid_minimal.json` y `tests/vectors/invalid_missing_required.json`
+
+Fichero `tests/vectors/valid_minimal.json`:
 
 ```json
-// tests/vectors/valid_minimal.json
 {
   "schema_version": "afp/0.2",
   "report_id": "afp_test0001",
@@ -345,8 +345,9 @@ Expected: FAIL con `FileNotFoundError` (el schema aún no existe)
 }
 ```
 
+Fichero `tests/vectors/invalid_missing_required.json`:
+
 ```json
-// tests/vectors/invalid_missing_required.json
 {
   "schema_version": "afp/0.2",
   "report_id": "afp_test0002",
@@ -900,10 +901,9 @@ def test_manifest_missing_sink_fails(tmp_path):
 Run: `uv run pytest tests/test_manifest.py -v`
 Expected: FAIL con `ModuleNotFoundError: No module named 'afp.manifest'`
 
-- [ ] **Step 3: Escribir el JSON Schema del manifiesto**
+- [ ] **Step 3: Escribir el JSON Schema del manifiesto** → fichero `src/afp/schema/afp_manifest.schema.json`
 
 ```json
-// src/afp/schema/afp_manifest.schema.json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://afp.dev/schema/afp_manifest.schema.json",
@@ -920,7 +920,7 @@ Expected: FAIL con `ModuleNotFoundError: No module named 'afp.manifest'`
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["github_issues", "gitlab_issues", "file", "http", "local", "draft"]
+          "enum": ["github_issues", "local", "draft"]
         },
         "repo": { "type": "string" },
         "label": { "type": "string" },
@@ -1043,12 +1043,12 @@ def test_well_known_manifest_is_found(tmp_path):
     (wk / "afp.json").write_text(json.dumps({
         "afp_version": "0.2",
         "subject_uri": "https://api.example.com",
-        "sink": {"type": "http", "url": "https://api.example.com/afp"},
+        "sink": {"type": "github_issues", "repo": "user/example", "label": "afp-report"},
         "accepts_remote": True,
     }))
     decision = discover(tmp_path)
     assert decision.has_manifest is True
-    assert "http" in decision.allowed_sinks
+    assert "github_issues" in decision.allowed_sinks
 
 
 def test_manifest_without_accepts_remote_blocks_remote(tmp_path):
@@ -1429,16 +1429,37 @@ def test_route_blocks_remote_without_manifest(tmp_path):
         route("github_issues", decision, base_dir=tmp_path)
 
 
-def test_route_allows_remote_with_manifest(tmp_path):
-    manifest = Manifest(
+def _manifest():
+    return Manifest(
         afp_version="0.2", subject_uri="mcp://github.com/user/repo",
         sink={"type": "github_issues", "repo": "user/repo", "label": "afp-report"},
         accepts_remote=True,
     )
+
+
+def test_route_allows_remote_with_manifest_and_matching_subject(tmp_path):
+    manifest = _manifest()
     decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
-    sink = route("github_issues", decision, base_dir=tmp_path)
+    report = {"subject_uri": "mcp://github.com/user/repo", "goal": "g"}
+    sink = route("github_issues", decision, report, base_dir=tmp_path)
     assert isinstance(sink, GitHubIssuesSink)
     assert sink.repo == "user/repo"
+
+
+def test_route_blocks_subject_uri_spoofing(tmp_path):
+    # manifest declara subject A, el reporte dice subject B -> bloqueado
+    manifest = _manifest()
+    decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
+    report = {"subject_uri": "mcp://github.com/attacker/other", "goal": "g"}
+    with pytest.raises(SinkNotAllowed):
+        route("github_issues", decision, report, base_dir=tmp_path)
+
+
+def test_route_blocks_remote_without_report(tmp_path):
+    manifest = _manifest()
+    decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
+    with pytest.raises(SinkNotAllowed):
+        route("github_issues", decision, None, base_dir=tmp_path)
 
 
 def test_route_defaults_to_draft_when_none_requested(tmp_path):
@@ -1485,30 +1506,43 @@ def get_sink(sink_type: str, *, base_dir: Path = Path("."), manifest=None):
     raise ValueError(f"sink desconocido: {sink_type!r}")
 
 
-def route(requested, decision, *, base_dir: Path = Path(".")):
+def route(requested, decision, report=None, *, base_dir: Path = Path(".")):
     """Elige un sink respetando la decisión de routing.
 
     - requested None  -> 'draft' (siempre seguro).
     - requested no permitido por la política -> SinkNotAllowed.
+    - sink remoto -> ANTI-SPOOFING (§8 threat model): el subject_uri del
+      reporte debe coincidir con el del manifest declarado por el dueño;
+      si no, se bloquea para que un reporte falsificado no aterrice en la
+      víctima equivocada.
     """
     chosen = requested or "draft"
     if chosen not in decision.allowed_sinks:
         raise SinkNotAllowed(
             f"sink {chosen!r} no permitido; permitidos: {decision.allowed_sinks}"
         )
+    if chosen in REMOTE_SINKS:
+        manifest = decision.manifest
+        report_subject = (report or {}).get("subject_uri")
+        if manifest is None or report_subject != manifest.subject_uri:
+            raise SinkNotAllowed(
+                "anti-spoofing: subject_uri del reporte "
+                f"({report_subject!r}) no coincide con el del manifest "
+                f"({getattr(manifest, 'subject_uri', None)!r})"
+            )
     return get_sink(chosen, base_dir=base_dir, manifest=decision.manifest)
 ```
 
 - [ ] **Step 4: Ejecutar el test para verificar que pasa**
 
 Run: `uv run pytest tests/test_routing.py -v`
-Expected: PASS (5 tests)
+Expected: PASS (7 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/afp/sinks/__init__.py tests/test_routing.py
-git commit -m "feat: add sink factory + routing enforcement (remote requires manifest)"
+git commit -m "feat: add sink factory + routing enforcement with anti-spoofing"
 ```
 
 ---
@@ -1567,13 +1601,15 @@ def test_validate_ok(tmp_path):
     assert "OK" in result.output
 
 
-def test_validate_rejects_secret(tmp_path):
+def test_report_rejects_secret(tmp_path):
+    # El secreto debe bloquearse YA en `report`, que no escribe el fichero.
     src = tmp_path / "partial.json"
     src.write_text(json.dumps(_partial(workaround="ghp_0123456789abcdefghijklmnopqrstuvwxyz")))
     out = tmp_path / "report.json"
-    runner.invoke(app, ["report", "--from", str(src), "--out", str(out)])
-    result = runner.invoke(app, ["validate", str(out)])
+    result = runner.invoke(app, ["report", "--from", str(src), "--out", str(out)])
     assert result.exit_code != 0
+    assert "ERROR" in result.output
+    assert not out.exists()  # no se escribió nada con el secreto dentro
 
 
 def test_submit_without_manifest_goes_to_draft(tmp_path):
@@ -1674,7 +1710,7 @@ def submit(
         raise typer.Exit(code=1)
     decision = discover(dir_)
     try:
-        chosen = route(sink, decision, base_dir=dir_)
+        chosen = route(sink, decision, report=data, base_dir=dir_)
     except SinkNotAllowed as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)

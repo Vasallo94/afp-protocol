@@ -339,10 +339,11 @@ idéntico; solo cambia el sobre.
 
 | Tipo de sink | Comportamiento | Requiere `afp.json` | Estado |
 |--------------|----------------|---------------------|--------|
-| `local` | Spool en carpeta local (`.afp/reports.jsonl`). | No | v1 |
-| `draft` | Borrador para confirmación humana antes de enviar. | No | v1 |
-| `github_issues` / `gitlab_issues` | Issue con plantilla y etiqueta `afp-report`. | **Sí** | v1 |
-| `file` | Anexa a un fichero en el repo vía PR/commit. | **Sí** | v1 |
+| `local` | Spool en carpeta local (`.afp/reports.jsonl`). | No | Fase 1a |
+| `draft` | Borrador para confirmación humana antes de enviar. | No | Fase 1a |
+| `github_issues` | Issue con plantilla y etiqueta `afp-report`. | **Sí** | Fase 1a |
+| `gitlab_issues` | Issue equivalente en GitLab. | **Sí** | Futuro |
+| `file` | Anexa a un fichero en el repo vía PR/commit. | **Sí** | Futuro |
 | `http` | POST a un endpoint del dueño. | **Sí** | Futuro |
 
 ---
@@ -388,14 +389,17 @@ un objetivo de abuso. Riesgos y mitigaciones:
 
 ## 9. Alcance por fases
 
-### Fase 1 — MVP del estándar
+### Fase 1a — MVP del estándar
 
 - Esquema del **Field Report** core + extensiones (§3). ✅ definido
 - `subject_uri` (PURL-based) + `afp.json` + cascada endurecida (§4). ✅ definido
 - Clasificación/minimización de PII (§5). ✅ definido
-- **Implementación de referencia mínima**: una skill/CLI que enseñe a un agente
-  a generar un field report bien formado y depositarlo vía `local`/`draft` o,
-  si hay `afp.json`, `github_issues`/`file`.
+- **Implementación de referencia mínima**: una librería + CLI que enseñe a un
+  agente a generar un field report bien formado y depositarlo vía `local`/`draft`
+  o, si hay `afp.json`, `github_issues`. Incluye verificación anti-spoofing
+  (`subject_uri` del reporte == `subject_uri` del manifiesto) antes de cualquier
+  sink remoto.
+- Sinks `gitlab_issues`, `file`, `http` quedan para una Fase 1b.
 
 ### Fase 1.5 — Volverla normativa
 
