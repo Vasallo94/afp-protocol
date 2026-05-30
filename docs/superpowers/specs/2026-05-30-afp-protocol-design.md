@@ -434,6 +434,23 @@ un objetivo de abuso. Riesgos y mitigaciones:
 
 ---
 
+## 10b. Limitaciones conocidas de Fase 1a (backlog Fase 1b)
+
+Aceptadas como alcance MVP tras dos rondas de review. No bloqueantes; registradas
+para que no se conviertan en deuda invisible:
+
+- **Detección de PII no exhaustiva.** Se cubren secretos de alta confianza y
+  emails; quedan fuera teléfonos, nombres y direcciones (dependen de la
+  minimización del agente, §5.2 regla 3).
+- **El objeto `sink` admite campos extra.** El schema del manifiesto no fija
+  `additionalProperties: false` dentro de `sink`, así que claves mal escritas
+  pasan en silencio. Endurecer en Fase 1b.
+- **Validación laxa de URLs `http`/`https`.** `subject_uri` con esquema web solo
+  exige "algo tras `://`"; no se valida estructura de host/ruta. Suficiente como
+  identificador en Fase 1a; endurecer si se usa para enrutar.
+
+---
+
 ## 11. Glosario
 
 - **AFP** — Agent Feedback Protocol (nombre de trabajo).
