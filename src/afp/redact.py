@@ -1,10 +1,10 @@
-"""Detección de secretos para la clase "prohibido" (§5 del spec).
+"""Detección de secretos y PII de la clase "prohibido" (§5 del spec).
 
-LIMITACIÓN (Fase 1a): esta es una lista de patrones de ALTA CONFIANZA, no un
-detector exhaustivo. NO cubre PII directa (emails, teléfonos, nombres) ni todas
-las clases de secretos (p.ej. claves secretas AWS de 40 chars sin contexto). El
-agente que genera el reporte sigue siendo responsable de la minimización de
-datos (§5.3); este filtro es una última red de seguridad, no una garantía total.
+Cubre: secretos de alta confianza (tokens API, claves, JWT, Bearer) y emails
+(PII directa). LIMITACIÓN (Fase 1a): NO cubre exhaustivamente otra PII como
+teléfonos, nombres o direcciones. El agente que genera el reporte sigue siendo
+responsable de la minimización de datos (§5.3); este filtro es una última red
+de seguridad, no una garantía total.
 """
 import re
 
@@ -18,6 +18,7 @@ _SECRET_PATTERNS = [
     re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{6,}"),  # JWT
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{20,}"),                            # Bearer token
     re.compile(r"(?i)(api[_-]?key|secret|password|access[_-]?key|token)\s*[:=]\s*['\"]?[A-Za-z0-9/_\-]{8,}"),  # key=value secret
+    re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"),  # email (PII directa)
 ]
 
 

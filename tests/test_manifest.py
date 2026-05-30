@@ -42,3 +42,21 @@ def test_manifest_missing_sink_fails(tmp_path):
     p.write_text(json.dumps(data))
     with pytest.raises(ManifestInvalid):
         load_manifest(p)
+
+
+def test_manifest_invalid_subject_uri_fails(tmp_path):
+    data = _good()
+    data["subject_uri"] = "not-a-uri"
+    p = tmp_path / "afp.json"
+    p.write_text(json.dumps(data))
+    with pytest.raises(ManifestInvalid):
+        load_manifest(p)
+
+
+def test_manifest_github_issues_requires_repo(tmp_path):
+    data = _good()
+    data["sink"] = {"type": "github_issues"}  # missing repo
+    p = tmp_path / "afp.json"
+    p.write_text(json.dumps(data))
+    with pytest.raises(ManifestInvalid):
+        load_manifest(p)

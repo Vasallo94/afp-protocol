@@ -25,5 +25,21 @@
     "redaction": { "type": "string", "enum": ["required", "optional"] },
     "accepts_remote": { "type": "boolean" },
     "schema_extensions": { "type": "array" }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sink": {
+            "properties": { "type": { "const": "github_issues" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sink": { "required": ["type", "repo"] }
+        }
+      }
+    }
+  ]
 }

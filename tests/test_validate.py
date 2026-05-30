@@ -42,3 +42,17 @@ def test_secret_in_report_blocks():
     bad = _report_dict(workaround="usé ghp_0123456789abcdefghijklmnopqrstuvwxyz")
     with pytest.raises(SecretDetected):
         validate_report(bad)
+
+
+def test_invalid_subject_uri_fails():
+    bad = _report_dict()
+    bad["subject_uri"] = "not-a-uri"
+    with pytest.raises(ReportInvalid):
+        validate_report(bad)
+
+
+def test_invalid_timestamp_fails():
+    bad = _report_dict()
+    bad["timestamp"] = "not-a-date"
+    with pytest.raises(ReportInvalid):
+        validate_report(bad)

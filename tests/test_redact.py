@@ -46,3 +46,12 @@ def test_contains_secret_true_extended(text):
 ])
 def test_contains_secret_false_near_miss(text):
     assert contains_secret(text) is False
+
+
+def test_email_is_detected_as_pii():
+    assert contains_secret("escribe a juan.perez@example.com por favor") is True
+
+
+def test_package_with_at_is_not_email():
+    # un PURL con @version no debe confundirse con un email
+    assert contains_secret("pkg:npm/eslint@9.2.0") is False
