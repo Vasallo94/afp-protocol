@@ -73,3 +73,73 @@ def test_submit_local_ok(tmp_path):
     result = runner.invoke(app, ["submit", str(out), "--dir", str(tmp_path), "--sink", "local"])
     assert result.exit_code == 0, result.output
     assert (tmp_path / ".afp" / "reports.jsonl").exists()
+
+
+def test_dogfood_creates_draft_for_afp_itself(tmp_path):
+    result = runner.invoke(app, [
+        "dogfood",
+        "--goal", "probar AFP sobre AFP",
+        "--expectation", "el comando debería generar un reporte local",
+        "--observed", "necesitaba una forma directa de reportar fricción",
+        "--friction-type", "missing_capability",
+        "--fault-domain", "tool",
+        "--severity", "degraded",
+        "--dir", str(tmp_path),
+    ])
+    assert result.exit_code == 0, result.output
+    drafts = list((tmp_path / ".afp" / "drafts").glob("*.json"))
+    assert len(drafts) == 1
+    report = json.loads(drafts[0].read_text())
+    assert report["subject_uri"] == "pkg:pypi/afp@0.2.0"
+    assert report["harness"] == "afp-cli"
+    assert report["tool_call_name"] == "afp dogfood"
+
+
+def test_dogfood_rejects_pii_and_writes_no_draft(tmp_path):
+    result = runner.invoke(app, [
+        "dogfood",
+        "--goal", "probar AFP sobre AFP",
+        "--expectation", "el comando debería bloquear PII",
+        "--observed", "falló con el usuario persona@example.com",
+        "--friction-type", "bug",
+        "--fault-domain", "tool",
+        "--severity", "blocked",
+        "--dir", str(tmp_path),
+    ])
+    assert result.exit_code != 0
+    assert "ERROR" in result.output
+    assert not (tmp_path / ".afp" / "drafts").exists()
+
+
+def test_validate_manifest_ok(tmp_path):
+    manifest = tmp_path / "afp.json"
+    manifest.write_text(json.dumps({
+        "afp_version": "0.2",
+        "subject_uri": "mcp://github.com/Vasallo94/obsidian-mcp-server",
+        "sink": {
+            "type": "github_issues",
+            "repo": "Vasallo94/obsidian-mcp-server",
+            "label": "afp-report",
+        },
+        "redaction": "required",
+        "accepts_remote": True,
+    }))
+
+    result = runner.invoke(app, ["validate-manifest", str(manifest)])
+
+    assert result.exit_code == 0, result.output
+    assert "OK" in result.output
+
+
+def test_validate_manifest_rejects_invalid_manifest(tmp_path):
+    manifest = tmp_path / "afp.json"
+    manifest.write_text(json.dumps({
+        "afp_version": "0.2",
+        "subject_uri": "not-a-uri",
+        "sink": {"type": "github_issues"},
+    }))
+
+    result = runner.invoke(app, ["validate-manifest", str(manifest)])
+
+    assert result.exit_code != 0
+    assert "INVALID" in result.output

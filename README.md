@@ -21,6 +21,9 @@ uv run afp report --from partial.json --out report.json
 # 2. Validar (JSON Schema + hard-block de secretos)
 uv run afp validate report.json
 
+# Validar un manifiesto afp.json
+uv run afp validate-manifest afp.json
+
 # 3. Depositar respetando la política de routing
 #    Sin afp.json en --dir, solo se permite local/draft (nunca auto-envío remoto).
 uv run afp submit report.json --dir . --sink draft
@@ -39,6 +42,24 @@ uv run afp submit report.json --dir . --sink draft
   "severity": "degraded"
 }
 ```
+
+## Dogfooding de AFP sobre AFP
+
+Para reportar fricción encontrada usando esta propia implementación:
+
+```bash
+uv run afp dogfood \
+  --goal "validar un reporte generado por AFP" \
+  --expectation "la CLI debería explicar por qué falla" \
+  --observed "el mensaje no dejaba claro qué campo era inválido" \
+  --friction-type confusing_interface \
+  --fault-domain tool \
+  --severity degraded \
+  --sink draft
+```
+
+Por defecto, sin `afp.json` remoto, esto crea un borrador local en
+`.afp/drafts/`. Es el primer circuito de pruebas reales del protocolo.
 
 ## Regla de oro de seguridad
 
