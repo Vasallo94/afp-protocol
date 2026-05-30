@@ -5,6 +5,8 @@ from pathlib import Path
 
 import jsonschema
 
+from afp.identity import validate_subject_uri, InvalidSubjectUri
+
 _SCHEMA_PATH = Path(__file__).parent / "schema" / "afp_manifest.schema.json"
 
 
@@ -32,6 +34,10 @@ class Manifest:
             jsonschema.validate(data, _schema())
         except jsonschema.ValidationError as exc:
             raise ManifestInvalid(exc.message) from exc
+        try:
+            validate_subject_uri(data["subject_uri"])
+        except InvalidSubjectUri as exc:
+            raise ManifestInvalid(f"subject_uri inválido: {exc}") from exc
         return cls(
             afp_version=data["afp_version"],
             subject_uri=data["subject_uri"],

@@ -324,7 +324,10 @@ sensibles. El protocolo exige **minimización de datos por defecto**.
 1. **Redacción obligatoria** de la clase *sensible* antes de cualquier envío
    (`"redaction": "required"` en `afp.json` lo refuerza).
 2. **Filtrado duro** de la clase *prohibido*: detección de secretos/PII; si se
-   detecta, el reporte no se envía.
+   detecta, el reporte no se envía. *(Alcance Fase 1a: secretos de alta
+   confianza —tokens, claves, JWT, Bearer— y emails. La PII no exhaustiva
+   —teléfonos, nombres, direcciones— sigue dependiendo de la minimización
+   del agente (regla 3); ampliar el detector queda para fases posteriores.)*
 3. **Minimización por defecto**: el agente incluye lo mínimo necesario para que
    el reporte sea accionable, no todo el contexto disponible.
 4. Es el **principal riesgo legal** del proyecto y una decisión de diseño.
