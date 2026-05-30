@@ -1,7 +1,14 @@
 # AFP — Agent Feedback Protocol
 
-**Documento de diseño** · v0.2 · 2026-05-30
+**Documento de diseño** · v0.2.1 · 2026-05-30
 
+> **Changelog v0.2 → v0.2.1** (ajustes de precisión tras 2ª review):
+> - El Harvester ya no descarta `fault_domain ≠ tool`; los conserva como señales
+>   de docs/contrato/UX.
+> - Corregido "~8 campos" → "10 campos" (el core tiene 10).
+> - Retórica de `fault_domain` suavizada: "dónde parece estar la causa" en vez de
+>   "de quién es la culpa" (el nombre del campo no cambia).
+>
 > **Changelog v0.1 → v0.2** (tras review externa de GPT-5.5):
 > - `tool_anchor` reemplazado por `subject_uri` apoyado en **PURL (ECMA-427)**.
 > - Esquema partido en **core (required)** + **extensiones (optional)** para no inflar el MVP.
@@ -79,7 +86,7 @@ se construye y se prueba de forma independiente.
 │  1. EL DATO — "Field Report"                                  │
 │     Esquema universal y agnóstico al transporte.              │
 │     Core required (mínimo) + extensiones optional.            │
-│     Captura: intención, plan, expectativa, qué pasó, culpa.   │
+│     Captura: intención, plan, expectativa, qué pasó, causa.   │
 │     Es el corazón. Todo lo demás sirve a esto.                │
 ├─────────────────────────────────────────────────────────────┤
 │  2. LA IDENTIDAD — "subject_uri"                              │
@@ -103,7 +110,8 @@ se construye y se prueba de forma independiente.
 
 1. Un agente (en cualquier harness) usa una herramienta y su **plan se rompe**.
 2. Genera un **Field Report** (pieza 1): qué quería, qué esperaba, qué recibió,
-   en qué punto del plan se rompió, y **de quién es la culpa** (`fault_domain`).
+   en qué punto del plan se rompió, y **dónde parece estar la causa**
+   (`fault_domain`).
 3. Resuelve la **identidad** de la tool (pieza 2): `subject_uri` + buzón.
 4. **Si hay `afp.json`**, deposita por el transporte declarado (pieza 3). **Si
    no**, lo guarda en spool local o como borrador para revisión humana — nunca
@@ -126,7 +134,7 @@ Regla de oro: **captura la intención frustrada, no el error técnico.**
 
 El esquema se parte en **core (required)** —el mínimo válido, barato de
 generar— y **extensiones (optional)** —enriquecen el reporte cuando hay
-contexto disponible—. Un reporte mínimo válido tiene ~8 campos; el resto es
+contexto disponible—. El core son 10 campos baratos de generar; el resto es
 opcional.
 
 ### 3.1 Core (required)
@@ -140,7 +148,7 @@ opcional.
 | `expectation` | string | Qué esperaba que devolviera/hiciera la tool. |
 | `observed` | string | Qué recibió/ocurrió en realidad. |
 | `friction_type` | enum | Qué tipo de fricción fue (§3.3). |
-| `fault_domain` | enum | De quién es la culpa (§3.4). **No toda fricción es culpa de la tool.** |
+| `fault_domain` | enum | Dónde parece estar la causa de la fricción (§3.4). **No toda fricción se origina en la tool.** |
 | `severity` | enum | `blocked` \| `degraded` \| `cosmetic`. |
 | `timestamp` | string (ISO 8601) | Cuándo ocurrió. |
 
@@ -173,11 +181,13 @@ opcional.
 - `wrong_output` — devolvió algo incorrecto o en formato inesperado.
 - `integration_mismatch` — falla al integrarse con el resto del sistema u otras tools.
 
-### 3.4 `fault_domain` — de quién es la culpa (enum cerrado)
+### 3.4 `fault_domain` — dónde parece estar la causa (enum cerrado)
 
-Eje **separado** de `friction_type`. Evita que el protocolo asuma que cualquier
-fallo del agente es culpa de la tool. Un mantenedor confía mucho más en un flujo
-de reportes que sabe distinguir su propio bug de un mal uso del agente.
+Eje **separado** de `friction_type`. Indica el **dominio probable** de la
+fricción, sin emitir un juicio definitivo de culpa. Evita que el protocolo asuma
+que cualquier fallo del agente se origina en la tool. Un mantenedor confía mucho
+más en un flujo de reportes que sabe distinguir su propio bug de un mal uso del
+agente.
 
 - `tool` — la herramienta se comportó mal.
 - `agent_misuse` — el agente la usó incorrectamente (input mal formado, orden equivocado).
@@ -345,8 +355,12 @@ herramienta de referencia que *consume* el estándar.
 1. **Lee** los reportes acumulados.
 2. **Deduplica y agrupa** por `subject_uri` + `friction_type` + `fault_domain` +
    `dedupe_key`/similitud semántica. Ej: "14 agentes bloqueados en lo mismo".
-3. **Prioriza** por frecuencia × severidad, ponderando por `confidence` y
-   filtrando `fault_domain` ≠ `tool` (no es trabajo del mantenedor).
+3. **Prioriza** por frecuencia × severidad, ponderando por `confidence`.
+   Prioriza `fault_domain: tool`, pero **no descarta los demás dominios**:
+   `ambiguous_contract`, `confusing_interface`, `missing_capability` —e incluso
+   patrones recurrentes de `agent_misuse`— suelen ser **señales de docs, schema
+   o UX deficientes**. Se agrupan y conservan como feedback de contrato y
+   documentación, no como ruido.
 4. **Genera trabajo accionable**: issue resumen, o borrador de PR si el
    `workaround` sugiere el fix.
 
@@ -402,7 +416,7 @@ un objetivo de abuso. Riesgos y mitigaciones:
 |----------|-------|
 | El dato es el centro, no el transporte | Permite que MCP, CLI, skill, API y GUI compartan un mismo protocolo. |
 | Enums cerrados (`friction_type`, `fault_domain`, `severity`) | Hace barata la deduplicación/agrupación del Harvester. |
-| `fault_domain` separado de `friction_type` | No toda fricción es culpa de la tool; genera confianza del mantenedor. |
+| `fault_domain` separado de `friction_type` | No toda fricción se origina en la tool; genera confianza del mantenedor y preserva señales de docs/contrato. |
 | Core required + extensiones optional | Reporte mínimo barato de generar = más adopción; el resto enriquece. |
 | `subject_uri` apoyado en PURL | Reutilizar un estándar ECMA existente baja la fricción de adopción. |
 | Redacción/minimización de PII | Principal riesgo legal; evita filtrar datos a repos de terceros. |
@@ -421,7 +435,8 @@ un objetivo de abuso. Riesgos y mitigaciones:
 - **`subject_uri`** — identificador URI único y determinista de una tool, basado
   en PURL/URIs nativas donde sea posible.
 - **`friction_type`** — qué tipo de fricción ocurrió.
-- **`fault_domain`** — de quién es la culpa (tool / agente / entorno / contrato).
+- **`fault_domain`** — dónde parece estar la causa de la fricción (tool /
+  agente / entorno / contrato). Dominio probable, no juicio de culpa.
 - **Sink** — el canal/destino por el que viaja un field report.
 - **Harvester** — agente que consume los reportes y genera mejoras.
 - **Harness** — el entorno agéntico (Claude Code, Cursor, Cline, Aider…).
