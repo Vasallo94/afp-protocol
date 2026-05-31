@@ -91,3 +91,35 @@ def test_route_still_blocks_different_owner_with_fragment(tmp_path):
     report = {"subject_uri": "mcp://github.com/attacker/other#some_tool", "goal": "g"}
     with pytest.raises(SinkNotAllowed):
         route("github_issues", decision, report, base_dir=tmp_path)
+
+
+def _gitlab_manifest():
+    return Manifest(
+        afp_version="0.2", subject_uri="mcp://gl.local/grp/proj",
+        sink={"type": "gitlab_issues", "host": "gl.local", "repo": "grp/proj",
+              "label": "afp-report"},
+        accepts_remote=True,
+    )
+
+
+def test_get_sink_gitlab(tmp_path):
+    from afp.sinks.gitlab import GitLabIssuesSink
+    sink = get_sink("gitlab_issues", base_dir=tmp_path, manifest=_gitlab_manifest())
+    assert isinstance(sink, GitLabIssuesSink)
+    assert sink.repo == "grp/proj"
+    assert sink.host == "gl.local"
+
+
+def test_route_gitlab_allows_matching_base(tmp_path):
+    from afp.sinks.gitlab import GitLabIssuesSink
+    decision = RoutingDecision(True, _gitlab_manifest(), ["local", "draft", "gitlab_issues"])
+    report = {"subject_uri": "mcp://gl.local/grp/proj#some_tool", "goal": "g"}
+    sink = route("gitlab_issues", decision, report, base_dir=tmp_path)
+    assert isinstance(sink, GitLabIssuesSink)
+
+
+def test_route_gitlab_blocks_other_owner(tmp_path):
+    decision = RoutingDecision(True, _gitlab_manifest(), ["local", "draft", "gitlab_issues"])
+    report = {"subject_uri": "mcp://gl.local/attacker/other#tool", "goal": "g"}
+    with pytest.raises(SinkNotAllowed):
+        route("gitlab_issues", decision, report, base_dir=tmp_path)
