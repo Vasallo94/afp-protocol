@@ -13,22 +13,95 @@ from afp.sinks import SinkNotAllowed, route
 from afp.validate import ReportInvalid, validate_report
 
 app = typer.Typer(help="AFP — Agent Feedback Protocol CLI")
+drafts_app = typer.Typer(help="Revisa y promueve drafts locales AFP.")
+app.add_typer(drafts_app, name="drafts")
+
+
+def _build_report(from_path: Path) -> dict:
+    partial = json.loads(Path(from_path).read_text())
+    if "report_id" in partial:
+        fr = FieldReport.from_dict(partial)
+    else:
+        fr = FieldReport.create(**partial)
+    data = fr.to_dict()
+    validate_report(data)
+    return data
+
+
+def _submit_report(data: dict, *, dir_: Path, sink: str | None):
+    decision = discover(dir_)
+    chosen = route(sink, decision, report=data, base_dir=dir_)
+    ref = chosen.submit(data)
+    return chosen.name, ref
+
+
+def _drafts_dir(dir_: Path) -> Path:
+    return Path(dir_) / ".afp" / "drafts"
+
+
+def _draft_paths(dir_: Path) -> list[Path]:
+    drafts_dir = _drafts_dir(dir_)
+    if not drafts_dir.exists():
+        return []
+    return sorted(drafts_dir.glob("*.json"))
+
+
+def _resolve_draft(ref: str, *, dir_: Path) -> Path:
+    path = Path(ref)
+    if path.is_file():
+        return path
+    drafts_dir = _drafts_dir(dir_)
+    candidates = [drafts_dir / ref, drafts_dir / f"{ref}.json"]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    for draft in _draft_paths(dir_):
+        try:
+            data = json.loads(draft.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if data.get("report_id") == ref or draft.stem == ref:
+            return draft
+    raise FileNotFoundError(f"draft no encontrado: {ref}")
+
+
+def _render_report_markdown(report: dict) -> str:
+    lines = [
+        "## AFP Field Report",
+        "",
+        f"- Report: `{report.get('report_id', 'unknown')}`",
+        f"- Subject: `{report.get('subject_uri', 'unknown')}`",
+        f"- Type: `{report.get('friction_type', 'unknown')}`",
+        f"- Fault domain: `{report.get('fault_domain', 'unknown')}`",
+        f"- Severity: `{report.get('severity', 'unknown')}`",
+    ]
+    if report.get("timestamp"):
+        lines.append(f"- Timestamp: `{report['timestamp']}`")
+    for title, key in [
+        ("Goal", "goal"),
+        ("Expected", "expectation"),
+        ("Observed", "observed"),
+        ("Workaround", "workaround"),
+    ]:
+        value = report.get(key)
+        if value:
+            lines.extend(["", f"### {title}", "", str(value)])
+    return "\n".join(lines)
 
 
 @app.command()
 def report(
     from_: Path = typer.Option(..., "--from", help="JSON parcial con los campos del reporte"),
     out: Path = typer.Option(None, "--out", help="Dónde escribir el reporte completo"),
+    submit_: bool = typer.Option(False, "--submit", help="Deposita el reporte tras construirlo"),
+    dir_: Path = typer.Option(
+        Path("."), "--dir", help="Directorio donde buscar afp.json al usar --submit"
+    ),
+    sink: str = typer.Option(None, "--sink", help="Sink solicitado al usar --submit"),
 ):
     """Construye un field report completo (añade id/timestamp/schema_version) y lo valida."""
-    partial = json.loads(Path(from_).read_text())
-    if "report_id" in partial:
-        fr = FieldReport.from_dict(partial)
-    else:
-        fr = FieldReport.create(**partial)
-    data = fr.to_dict()
     try:
-        validate_report(data)
+        data = _build_report(from_)
     except (ReportInvalid, SecretDetected) as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
@@ -36,7 +109,14 @@ def report(
     if out:
         Path(out).write_text(text, encoding="utf-8")
         typer.echo(f"OK: reporte escrito en {out}")
-    else:
+    if submit_:
+        try:
+            sink_name, ref = _submit_report(data, dir_=dir_, sink=sink)
+        except SinkNotAllowed as exc:
+            typer.echo(f"ERROR: {exc}", err=True)
+            raise typer.Exit(code=1)
+        typer.echo(f"OK: depositado vía {sink_name} -> {ref}")
+    elif not out:
         typer.echo(text)
 
 
@@ -84,6 +164,73 @@ def submit(
         raise typer.Exit(code=1)
     ref = chosen.submit(data)
     typer.echo(f"OK: depositado vía {chosen.name} -> {ref}")
+
+
+@drafts_app.command("list")
+def drafts_list(
+    dir_: Path = typer.Option(Path("."), "--dir", help="Repo/directorio con .afp/drafts"),
+):
+    """Lista drafts locales AFP en formato escaneable."""
+    drafts = _draft_paths(dir_)
+    if not drafts:
+        typer.echo("No hay drafts AFP.")
+        return
+    typer.echo("report_id\tseverity\tfriction_type\tfault_domain\tsubject_uri\tgoal")
+    for draft in drafts:
+        try:
+            data = json.loads(draft.read_text(encoding="utf-8"))
+            validate_report(data)
+        except (OSError, json.JSONDecodeError, ReportInvalid, SecretDetected) as exc:
+            typer.echo(f"{draft.name}\tINVALID\t{exc}")
+            continue
+        typer.echo(
+            "\t".join([
+                data.get("report_id", draft.stem),
+                data.get("severity", ""),
+                data.get("friction_type", ""),
+                data.get("fault_domain", ""),
+                data.get("subject_uri", ""),
+                data.get("goal", ""),
+            ])
+        )
+
+
+@drafts_app.command("show")
+def drafts_show(
+    ref: str = typer.Argument(..., help="report_id, stem o ruta del draft"),
+    dir_: Path = typer.Option(
+        Path("."), "--dir", help="Repo/directorio con .afp/drafts"
+    ),
+):
+    """Muestra un draft local en Markdown legible."""
+    try:
+        path = _resolve_draft(ref, dir_=dir_)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        validate_report(data)
+    except (OSError, json.JSONDecodeError, ReportInvalid, SecretDetected) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(_render_report_markdown(data))
+
+
+@drafts_app.command("promote")
+def drafts_promote(
+    ref: str = typer.Argument(..., help="report_id, stem o ruta del draft"),
+    dir_: Path = typer.Option(
+        Path("."), "--dir", help="Repo/directorio con .afp/drafts"
+    ),
+    sink: str = typer.Option(..., "--sink", help="Sink explícito: local/draft/github_issues"),
+):
+    """Promueve un draft revisado a un sink explícito."""
+    try:
+        path = _resolve_draft(ref, dir_=dir_)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        validate_report(data)
+        sink_name, submit_ref = _submit_report(data, dir_=dir_, sink=sink)
+    except (OSError, json.JSONDecodeError, ReportInvalid, SecretDetected, SinkNotAllowed) as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"OK: depositado vía {sink_name} -> {submit_ref}")
 
 
 @app.command()

@@ -76,6 +76,56 @@ def test_submit_local_ok(tmp_path):
     assert (tmp_path / ".afp" / "reports.jsonl").exists()
 
 
+def test_report_can_submit_atomically_to_draft(tmp_path):
+    src = tmp_path / "partial.json"
+    src.write_text(json.dumps(_partial()))
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            "--from", str(src),
+            "--submit",
+            "--dir", str(tmp_path),
+            "--sink", "draft",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "depositado vía draft" in result.output
+    drafts = list((tmp_path / ".afp" / "drafts").glob("*.json"))
+    assert len(drafts) == 1
+
+
+def test_drafts_list_show_and_promote(tmp_path):
+    src = tmp_path / "partial.json"
+    src.write_text(json.dumps(_partial()))
+    report = tmp_path / "report.json"
+    runner.invoke(app, ["report", "--from", str(src), "--out", str(report)])
+    runner.invoke(app, ["submit", str(report), "--dir", str(tmp_path), "--sink", "draft"])
+    report_id = json.loads(report.read_text())["report_id"]
+
+    listed = runner.invoke(app, ["drafts", "list", "--dir", str(tmp_path)])
+    assert listed.exit_code == 0, listed.output
+    assert report_id in listed.output
+    assert "wrong_output" in listed.output
+    assert "degraded" in listed.output
+    assert "lintear" in listed.output
+
+    shown = runner.invoke(app, ["drafts", "show", report_id, "--dir", str(tmp_path)])
+    assert shown.exit_code == 0, shown.output
+    assert "## AFP Field Report" in shown.output
+    assert "### Observed" in shown.output
+    assert "texto plano" in shown.output
+
+    promoted = runner.invoke(
+        app, ["drafts", "promote", report_id, "--dir", str(tmp_path), "--sink", "local"]
+    )
+    assert promoted.exit_code == 0, promoted.output
+    assert "depositado vía local" in promoted.output
+    assert (tmp_path / ".afp" / "reports.jsonl").exists()
+
+
 def test_dogfood_creates_draft_for_afp_itself(tmp_path):
     result = runner.invoke(app, [
         "dogfood",

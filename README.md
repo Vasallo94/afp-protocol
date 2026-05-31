@@ -27,6 +27,16 @@ uv run afp validate-manifest afp.json
 # 3. Depositar respetando la política de routing
 #    Sin afp.json en --dir, solo se permite local/draft (nunca auto-envío remoto).
 uv run afp submit report.json --dir . --sink draft
+
+# Alternativa atómica: construir y depositar en una sola llamada
+uv run afp report --from partial.json --submit --dir . --sink draft
+
+# Revisar drafts locales antes de promoverlos
+uv run afp drafts list --dir .
+uv run afp drafts show afp_<id> --dir .
+
+# Promoción explícita tras revisión humana
+uv run afp drafts promote afp_<id> --dir . --sink github_issues
 ```
 
 `partial.json` mínimo:
