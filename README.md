@@ -77,8 +77,31 @@ promoverse después a issues de `Vasallo94/afp-protocol` usando el sink remoto.
 Sin un `afp.json` declarado por la tool, AFP **nunca** auto-envía a un repo de
 terceros: solo escribe en `local` (spool) o `draft` (revisión humana). El envío
 remoto (p.ej. `github_issues`) es siempre **opt-in del mantenedor**, y además se
-verifica que el `subject_uri` del reporte coincide con el del manifiesto
-(anti-spoofing).
+verifica que la **base** del `subject_uri` del reporte (sin `#fragment` ni
+`@version` PURL) coincide con la del manifiesto (anti-spoofing).
+
+## Sink GitLab (self-hosted / on-premise)
+
+Para enrutar reportes a un GitLab interno, la tool declara en su `afp.json`:
+
+```json
+{
+  "afp_version": "0.2",
+  "subject_uri": "mcp://<gitlab-host>/<grupo>/<proyecto>",
+  "sink": {
+    "type": "gitlab_issues",
+    "host": "<gitlab-host>",
+    "repo": "<grupo>/<proyecto>",
+    "label": "afp-report"
+  },
+  "redaction": "required",
+  "accepts_remote": true
+}
+```
+
+Requiere `glab` instalado y autenticado contra el host
+(`glab auth login --hostname <host>`). La promoción a issue es explícita y
+revisada: `afp drafts promote <id> --dir <repo> --sink gitlab_issues`.
 
 ## Tests
 
