@@ -60,3 +60,23 @@ def test_manifest_github_issues_requires_repo(tmp_path):
     p.write_text(json.dumps(data))
     with pytest.raises(ManifestInvalid):
         load_manifest(p)
+
+
+def test_manifest_accepts_gitlab_issues(tmp_path):
+    data = _good()
+    data["sink"] = {"type": "gitlab_issues", "host": "gl.local",
+                    "repo": "grp/proj", "label": "afp-report"}
+    p = tmp_path / "afp.json"
+    p.write_text(json.dumps(data))
+    m = load_manifest(p)
+    assert m.sink["type"] == "gitlab_issues"
+    assert m.sink["host"] == "gl.local"
+
+
+def test_manifest_gitlab_issues_requires_repo(tmp_path):
+    data = _good()
+    data["sink"] = {"type": "gitlab_issues", "host": "gl.local"}  # missing repo
+    p = tmp_path / "afp.json"
+    p.write_text(json.dumps(data))
+    with pytest.raises(ManifestInvalid):
+        load_manifest(p)

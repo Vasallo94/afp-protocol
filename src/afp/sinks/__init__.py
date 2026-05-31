@@ -2,6 +2,7 @@ from pathlib import Path
 
 from afp.sinks.draft import DraftSink
 from afp.sinks.github import GitHubIssuesSink
+from afp.sinks.gitlab import GitLabIssuesSink
 from afp.sinks.local import LocalSink
 
 LOCAL_SINKS = {"local", "draft"}
@@ -44,6 +45,14 @@ def get_sink(sink_type: str, *, base_dir: Path = Path("."), manifest=None):
         return GitHubIssuesSink(
             repo=manifest.sink["repo"],
             label=manifest.sink.get("label", "afp-report"),
+        )
+    if sink_type == "gitlab_issues":
+        if manifest is None:
+            raise ValueError("gitlab_issues requiere un manifest con repo")
+        return GitLabIssuesSink(
+            repo=manifest.sink["repo"],
+            label=manifest.sink.get("label", "afp-report"),
+            host=manifest.sink.get("host"),
         )
     raise ValueError(f"sink desconocido: {sink_type!r}")
 
