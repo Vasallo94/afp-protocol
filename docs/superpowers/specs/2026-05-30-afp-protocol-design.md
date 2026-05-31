@@ -385,7 +385,7 @@ un objetivo de abuso. Riesgos y mitigaciones:
 | **Poisoning / reportes falsos** | Inundar con reportes falsos para sesgar prioridades o difamar una tool. | `confidence`, `fault_domain`, dedupe; el Harvester pondera, no obedece. |
 | **Prompt injection vía reporte** | Un reporte malicioso que intenta manipular al Harvester (que es un LLM). | Tratar el contenido del reporte como **datos no confiables**, nunca como instrucciones. |
 | **Exfiltración por issues públicos** | Filtrar PII/secretos a un repo público vía el reporte. | Clasificación de campos (§5), filtrado duro de *prohibido*, redacción obligatoria. |
-| **Abuso de identidad de tools** | `subject_uri` falsificado para dirigir reportes a la víctima equivocada. | URI determinista + verificación contra el `afp.json` declarado por el dueño. |
+| **Abuso de identidad de tools** | `subject_uri` falsificado para dirigir reportes a la víctima equivocada. | URI determinista + verificación de la **base** del `subject_uri` (sin `#fragment` ni `@version` PURL) contra el `afp.json` del dueño: el fragmento identifica una sub-tool del subject poseído, no otro dueño. |
 | **Fuga de secretos en `inputs`/`evidence`** | Tokens/credenciales en argumentos. | Detección de secretos en clase *prohibido*; abortar envío si se detecta. |
 
 ---
