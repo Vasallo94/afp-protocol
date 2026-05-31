@@ -13,6 +13,26 @@ class SinkNotAllowed(Exception):
     """Se pidió un sink remoto que la política de routing no permite."""
 
 
+def _owned_base(uri: str | None) -> str | None:
+    """Reduce un subject_uri a la 'base poseída' por el manifiesto.
+
+    El anti-spoofing comprueba propiedad, no igualdad literal:
+    - El fragmento `#sub-tool` identifica una sub-herramienta DENTRO del
+      subject que el manifiesto ya declara como propio, no un subject distinto.
+    - En PURL, la versión `@x.y.z` no cambia la propiedad del paquete.
+
+    Por eso comparamos la base (sin `#fragment` ni `@version` en PURL). El
+    threat model (§8) se mantiene: un subject de OTRO dueño tiene otra base y
+    sigue bloqueándose.
+    """
+    if uri is None:
+        return None
+    base = uri.split("#", 1)[0]
+    if base.startswith("pkg:") and "@" in base:
+        base = base.split("@", 1)[0]
+    return base
+
+
 def get_sink(sink_type: str, *, base_dir: Path = Path("."), manifest=None):
     if sink_type == "local":
         return LocalSink(base_dir=base_dir)
@@ -33,9 +53,9 @@ def route(requested, decision, report=None, *, base_dir: Path = Path(".")):
 
     - requested None  -> 'draft' (siempre seguro).
     - requested no permitido por la política -> SinkNotAllowed.
-    - sink remoto -> ANTI-SPOOFING (§8 threat model): el subject_uri del
-      reporte debe coincidir con el del manifest declarado por el dueño;
-      si no, se bloquea.
+    - sink remoto -> ANTI-SPOOFING (§8 threat model): la BASE del subject_uri
+      del reporte (sin `#fragment` ni `@version` PURL) debe coincidir con la
+      del manifest declarado por el dueño; si no, se bloquea.
     """
     chosen = requested or "draft"
     if chosen not in decision.allowed_sinks:
@@ -45,10 +65,11 @@ def route(requested, decision, report=None, *, base_dir: Path = Path(".")):
     if chosen in REMOTE_SINKS:
         manifest = decision.manifest
         report_subject = (report or {}).get("subject_uri")
-        if manifest is None or report_subject != manifest.subject_uri:
+        manifest_subject = getattr(manifest, "subject_uri", None)
+        if manifest is None or _owned_base(report_subject) != _owned_base(manifest_subject):
             raise SinkNotAllowed(
-                "anti-spoofing: subject_uri del reporte "
-                f"({report_subject!r}) no coincide con el del manifest "
-                f"({getattr(manifest, 'subject_uri', None)!r})"
+                "anti-spoofing: la base del subject_uri del reporte "
+                f"({_owned_base(report_subject)!r}) no coincide con la del "
+                f"manifest ({_owned_base(manifest_subject)!r})"
             )
     return get_sink(chosen, base_dir=base_dir, manifest=decision.manifest)

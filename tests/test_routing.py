@@ -59,3 +59,35 @@ def test_route_defaults_to_draft_when_none_requested(tmp_path):
     decision = RoutingDecision(False, None, ["local", "draft"])
     sink = route(None, decision, base_dir=tmp_path)
     assert sink.name == "draft"
+
+
+def test_route_allows_remote_with_subtool_fragment(tmp_path):
+    # El #fragment identifica una sub-tool del subject que el manifest posee.
+    manifest = _manifest()  # subject mcp://github.com/user/repo
+    decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
+    report = {"subject_uri": "mcp://github.com/user/repo#some_tool", "goal": "g"}
+    sink = route("github_issues", decision, report, base_dir=tmp_path)
+    assert isinstance(sink, GitHubIssuesSink)
+
+
+def test_route_allows_remote_ignoring_purl_version(tmp_path):
+    # La versión PURL no cambia la propiedad del paquete.
+    manifest = Manifest(
+        afp_version="0.2", subject_uri="pkg:github/user/repo@0.2.0",
+        sink={"type": "github_issues", "repo": "user/repo", "label": "afp-report"},
+        accepts_remote=True,
+    )
+    decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
+    report = {"subject_uri": "pkg:github/user/repo@0.3.0", "goal": "g"}
+    sink = route("github_issues", decision, report, base_dir=tmp_path)
+    assert isinstance(sink, GitHubIssuesSink)
+
+
+def test_route_still_blocks_different_owner_with_fragment(tmp_path):
+    # Un subject de OTRO dueño tiene otra base y sigue bloqueándose,
+    # aunque lleve un #fragment.
+    manifest = _manifest()  # subject mcp://github.com/user/repo
+    decision = RoutingDecision(True, manifest, ["local", "draft", "github_issues"])
+    report = {"subject_uri": "mcp://github.com/attacker/other#some_tool", "goal": "g"}
+    with pytest.raises(SinkNotAllowed):
+        route("github_issues", decision, report, base_dir=tmp_path)
