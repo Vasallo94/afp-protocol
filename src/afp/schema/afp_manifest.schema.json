@@ -14,10 +14,11 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["github_issues", "local", "draft"]
+          "enum": ["github_issues", "gitlab_issues", "local", "draft"]
         },
         "repo": { "type": "string" },
         "label": { "type": "string" },
+        "host": { "type": "string" },
         "path": { "type": "string" },
         "url": { "type": "string" }
       }
@@ -32,6 +33,20 @@
         "properties": {
           "sink": {
             "properties": { "type": { "const": "github_issues" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sink": { "required": ["type", "repo"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sink": {
+            "properties": { "type": { "const": "gitlab_issues" } }
           }
         }
       },
