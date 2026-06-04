@@ -39,6 +39,18 @@ def test_round_trip_from_dict():
     assert r2.workaround == "parsear a mano"
 
 
+def test_from_dict_preserves_unknown_extension_fields():
+    # Forward-compat (ADR-0001 opción A): un reporte de una versión más nueva
+    # con un campo de extensión que esta lib no conoce debe conservarse, no
+    # perderse ni romper.
+    d = FieldReport.create(**_kwargs()).to_dict()
+    d["experimental_signal"] = {"score": 0.9}
+    fr = FieldReport.from_dict(d)
+    out = fr.to_dict()
+    assert out["experimental_signal"] == {"score": 0.9}
+    assert out == d  # round-trip íntegro
+
+
 def test_from_dict_rejects_invalid_subject_uri():
     from afp.identity import InvalidSubjectUri
     d = FieldReport.create(**_kwargs()).to_dict()

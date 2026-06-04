@@ -3,13 +3,13 @@
   "$id": "https://afp.dev/schema/field_report.schema.json",
   "title": "AFP Field Report",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schema_version", "report_id", "subject_uri", "goal", "expectation",
     "observed", "friction_type", "fault_domain", "severity", "timestamp"
   ],
   "properties": {
-    "schema_version": { "type": "string", "const": "afp/0.2" },
+    "schema_version": { "type": "string", "pattern": "^afp/0\\.\\d+$" },
     "report_id": { "type": "string", "minLength": 1 },
     "subject_uri": { "type": "string", "minLength": 1 },
     "goal": { "type": "string", "minLength": 1 },

@@ -49,6 +49,11 @@ class FieldReport:
     confidence: Confidence | None = None
     reproducibility: Reproducibility | None = None
     dedupe_key: str | None = None
+    # --- forward-compat (ADR-0001) ---
+    # Campos de extensión de versiones más nuevas que esta lib no conoce. Se
+    # preservan tal cual en vez de descartarse o romper, para que productor y
+    # consumidor evolucionen a ritmos distintos.
+    extra: dict = field(default_factory=dict)
 
     @classmethod
     def create(cls, **kwargs) -> "FieldReport":
@@ -58,10 +63,13 @@ class FieldReport:
     def to_dict(self) -> dict:
         out: dict = {}
         for f in fields(self):
+            if f.name == "extra":
+                continue
             value = getattr(self, f.name)
             if value is None:
                 continue
             out[f.name] = value.value if isinstance(value, Enum) else value
+        out.update(self.extra)
         return out
 
     @classmethod
@@ -72,4 +80,6 @@ class FieldReport:
         for name, enum_cls in _ENUM_FIELDS.items():
             if data.get(name) is not None:
                 data[name] = enum_cls(data[name])
-        return cls(**data)
+        known = {f.name for f in fields(cls)} - {"extra"}
+        extra = {k: data.pop(k) for k in list(data) if k not in known}
+        return cls(**data, extra=extra)

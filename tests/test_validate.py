@@ -51,6 +51,27 @@ def test_invalid_subject_uri_fails():
         validate_report(bad)
 
 
+def test_unknown_extension_field_is_accepted():
+    # Forward-compat (ADR-0001 opción A): additionalProperties permitido.
+    ok = _report_dict()
+    ok["experimental_signal"] = {"score": 0.9}
+    validate_report(ok)
+
+
+def test_newer_minor_schema_version_is_accepted():
+    # Tolerancia por minor dentro del mismo major (ADR-0001).
+    ok = _report_dict()
+    ok["schema_version"] = "afp/0.99"
+    validate_report(ok)
+
+
+def test_different_major_schema_version_fails():
+    bad = _report_dict()
+    bad["schema_version"] = "afp/1.0"
+    with pytest.raises(ReportInvalid):
+        validate_report(bad)
+
+
 def test_invalid_timestamp_fails():
     bad = _report_dict()
     bad["timestamp"] = "not-a-date"
