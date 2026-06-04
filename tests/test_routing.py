@@ -93,6 +93,52 @@ def test_route_still_blocks_different_owner_with_fragment(tmp_path):
         route("github_issues", decision, report, base_dir=tmp_path)
 
 
+def _http_manifest(subject="https://api.acme.com/v1"):
+    return Manifest(
+        afp_version="0.2", subject_uri=subject,
+        sink={"type": "github_issues", "repo": "acme/api", "label": "afp-report"},
+        accepts_remote=True,
+    )
+
+
+def test_route_http_allows_subpath_same_host(tmp_path):
+    # Un API HTTP posee todo lo que cuelga de su host/prefijo: /v1/charges es suyo.
+    decision = RoutingDecision(True, _http_manifest(), ["local", "draft", "github_issues"])
+    report = {"subject_uri": "https://api.acme.com/v1/charges", "goal": "g"}
+    sink = route("github_issues", decision, report, base_dir=tmp_path)
+    assert isinstance(sink, GitHubIssuesSink)
+
+
+def test_route_http_ignores_trailing_slash_and_query(tmp_path):
+    decision = RoutingDecision(
+        True, _http_manifest("https://api.acme.com"), ["local", "draft", "github_issues"]
+    )
+    report = {"subject_uri": "https://api.acme.com/v1/charges/?x=1", "goal": "g"}
+    sink = route("github_issues", decision, report, base_dir=tmp_path)
+    assert isinstance(sink, GitHubIssuesSink)
+
+
+def test_route_http_blocks_lookalike_host(tmp_path):
+    # Ataque clásico de prefijo: api.acme.com.evil.com NO es api.acme.com.
+    decision = RoutingDecision(
+        True, _http_manifest("https://api.acme.com"), ["local", "draft", "github_issues"]
+    )
+    report = {"subject_uri": "https://api.acme.com.evil.com/v1", "goal": "g"}
+    with pytest.raises(SinkNotAllowed):
+        route("github_issues", decision, report, base_dir=tmp_path)
+
+
+def test_route_http_blocks_different_path_prefix(tmp_path):
+    # Host multi-tenant: un manifest scoped a /v1/acme no posee /v1/other.
+    decision = RoutingDecision(
+        True, _http_manifest("https://api.acme.com/v1/acme"),
+        ["local", "draft", "github_issues"],
+    )
+    report = {"subject_uri": "https://api.acme.com/v1/other", "goal": "g"}
+    with pytest.raises(SinkNotAllowed):
+        route("github_issues", decision, report, base_dir=tmp_path)
+
+
 def _gitlab_manifest():
     return Manifest(
         afp_version="0.2", subject_uri="mcp://gl.local/grp/proj",
