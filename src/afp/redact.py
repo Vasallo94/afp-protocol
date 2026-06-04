@@ -1,10 +1,17 @@
-"""Detección de secretos y PII de la clase "prohibido" (§5 del spec).
+"""Detección de secretos (clase "prohibido") y redacción de PII (§5 del spec).
 
-Cubre: secretos de alta confianza (tokens API, claves, JWT, Bearer) y emails
-(PII directa). LIMITACIÓN (Fase 1a): NO cubre exhaustivamente otra PII como
-teléfonos, nombres o direcciones. El agente que genera el reporte sigue siendo
-responsable de la minimización de datos (§5.3); este filtro es una última red
-de seguridad, no una garantía total.
+Dos tratamientos distintos según la clase (§5.1):
+- **prohibido** (tokens API, claves, JWT, Bearer): filtrado DURO → si se detecta,
+  el envío se aborta (`assert_no_secrets`).
+- **PII directa** (email): NO aborta; se REDACTA y el reporte continúa
+  (`redact_pii`), porque un email *mencionado* en texto libre suele ser
+  información útil para el mantenedor, no un secreto que justifique tirar el
+  reporte entero.
+
+LIMITACIÓN (Fase 1a): NO cubre exhaustivamente otra PII como teléfonos, nombres
+o direcciones. El agente que genera el reporte sigue siendo responsable de la
+minimización de datos (§5.3); este filtro es una última red de seguridad, no una
+garantía total.
 """
 import re
 
@@ -18,8 +25,12 @@ _SECRET_PATTERNS = [
     re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{6,}"),  # JWT
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{20,}"),                            # Bearer token
     re.compile(r"(?i)(api[_-]?key|secret|password|access[_-]?key|token)\s*[:=]\s*['\"]?[A-Za-z0-9/_\-]{8,}"),  # key=value secret
-    re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"),  # email (PII directa)
 ]
+
+# PII directa que se REDACTA (no aborta). Email (cuidando no confundir un PURL
+# `@version` con un email: exige un punto en el dominio tras la `@`).
+_EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+_EMAIL_PLACEHOLDER = "[REDACTED_EMAIL]"
 
 
 class SecretDetected(Exception):
@@ -56,3 +67,18 @@ def assert_no_secrets(report: dict) -> None:
     offending = scan_for_secrets(report)
     if offending:
         raise SecretDetected(f"secretos detectados en campos: {offending}")
+
+
+def _redact_value(value):
+    if isinstance(value, str):
+        return _EMAIL_PATTERN.sub(_EMAIL_PLACEHOLDER, value)
+    if isinstance(value, dict):
+        return {k: _redact_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_redact_value(v) for v in value]
+    return value
+
+
+def redact_pii(report: dict) -> dict:
+    """Devuelve una copia del reporte con la PII directa (email) redactada."""
+    return {k: _redact_value(v) for k, v in report.items()}

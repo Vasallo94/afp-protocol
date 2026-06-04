@@ -6,7 +6,7 @@ from pathlib import Path
 import jsonschema
 
 from afp.identity import validate_subject_uri, InvalidSubjectUri
-from afp.redact import assert_no_secrets
+from afp.redact import assert_no_secrets, redact_pii
 
 _SCHEMA_PATH = Path(__file__).parent / "schema" / "field_report.schema.json"
 
@@ -38,11 +38,15 @@ def _check_date_time(value: object) -> bool:
 
 
 def validate_report(report: dict) -> None:
-    """Valida contra el JSON Schema y bloquea si hay secretos.
+    """Redacta PII, bloquea secretos y valida el reporte (muta `report` in-place).
 
-    Orden: primero el hard-block de secretos (§5), luego el schema,
-    luego validación semántica del subject_uri.
+    Orden (§5): primero se REDACTA la PII directa (email) sobre el propio dict
+    —para que lo que se envíe ya esté limpio—, luego el hard-block de secretos,
+    luego el schema y la validación semántica del subject_uri.
     """
+    redacted = redact_pii(report)
+    report.clear()
+    report.update(redacted)
     assert_no_secrets(report)
     try:
         jsonschema.validate(report, load_schema(), format_checker=_format_checker)

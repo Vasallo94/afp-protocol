@@ -44,6 +44,15 @@ def test_secret_in_report_blocks():
         validate_report(bad)
 
 
+def test_email_is_redacted_in_place_and_report_passes():
+    # #10: el email se redacta y el reporte sigue siendo válido y enviable.
+    report = _report_dict()
+    report["observed"] = "el error citaba soporte@empresa.com"
+    validate_report(report)
+    assert "soporte@empresa.com" not in report["observed"]
+    assert "[REDACTED_EMAIL]" in report["observed"]
+
+
 def test_invalid_subject_uri_fails():
     bad = _report_dict()
     bad["subject_uri"] = "not-a-uri"

@@ -146,12 +146,33 @@ def test_dogfood_creates_draft_for_afp_itself(tmp_path):
     assert report["tool_call_name"] == "afp dogfood"
 
 
-def test_dogfood_rejects_pii_and_writes_no_draft(tmp_path):
+def test_dogfood_redacts_email_and_writes_draft(tmp_path):
+    # #10: un email mencionado se REDACTA; el reporte continúa y se guarda.
     result = runner.invoke(app, [
         "dogfood",
         "--goal", "probar AFP sobre AFP",
-        "--expectation", "el comando debería bloquear PII",
+        "--expectation", "el comando debería redactar PII y continuar",
         "--observed", "falló con el usuario persona@example.com",
+        "--friction-type", "bug",
+        "--fault-domain", "tool",
+        "--severity", "blocked",
+        "--dir", str(tmp_path),
+    ])
+    assert result.exit_code == 0, result.output
+    drafts = list((tmp_path / ".afp" / "drafts").glob("*.json"))
+    assert len(drafts) == 1
+    report = json.loads(drafts[0].read_text())
+    assert "persona@example.com" not in report["observed"]
+    assert "[REDACTED_EMAIL]" in report["observed"]
+
+
+def test_dogfood_rejects_hard_secret_and_writes_no_draft(tmp_path):
+    # Un secreto de alta confianza (token) sigue abortando el envío.
+    result = runner.invoke(app, [
+        "dogfood",
+        "--goal", "probar AFP sobre AFP",
+        "--expectation", "el comando debería bloquear secretos",
+        "--observed", "el log filtró ghp_0123456789abcdefghijklmnopqrstuvwxyz",
         "--friction-type", "bug",
         "--fault-domain", "tool",
         "--severity", "blocked",

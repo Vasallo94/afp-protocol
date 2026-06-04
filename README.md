@@ -85,6 +85,12 @@ manifiesto (anti-spoofing):
   y el path del reporte es el del manifiesto o un sub-path por segmentos
   (`/v1` posee `/v1/charges`, no `/v1abc`).
 
+Tratamiento de datos sensibles (§5): los **secretos de alta confianza** (tokens,
+claves, JWT, Bearer) son un **hard-block** — si se detectan, el envío se aborta.
+La **PII directa** (email) **no aborta**: se **redacta** a `[REDACTED_EMAIL]` y el
+reporte continúa, porque un email mencionado en texto libre suele ser información
+útil para el mantenedor.
+
 ## Semántica de entrega (at-least-once, no idempotente)
 
 `submit` deposita el reporte una vez por invocación y **no deduplica**: reenviar

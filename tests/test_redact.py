@@ -1,6 +1,8 @@
 import pytest
 
-from afp.redact import contains_secret, scan_for_secrets, SecretDetected, assert_no_secrets
+from afp.redact import (
+    contains_secret, scan_for_secrets, SecretDetected, assert_no_secrets, redact_pii,
+)
 
 
 @pytest.mark.parametrize("text", [
@@ -48,8 +50,33 @@ def test_contains_secret_false_near_miss(text):
     assert contains_secret(text) is False
 
 
-def test_email_is_detected_as_pii():
-    assert contains_secret("escribe a juan.perez@example.com por favor") is True
+def test_email_is_not_a_hard_secret():
+    # Cambio de comportamiento (#10): un email mencionado NO aborta el envío;
+    # se redacta y el reporte continúa.
+    assert contains_secret("escribe a juan.perez@example.com por favor") is False
+
+
+def test_assert_no_secrets_does_not_block_on_email():
+    assert_no_secrets({"observed": "el error mostraba soporte@empresa.com"})
+
+
+def test_redact_pii_replaces_email_and_keeps_rest():
+    out = redact_pii({"observed": "escribe a juan.perez@example.com hoy"})
+    assert "juan.perez@example.com" not in out["observed"]
+    assert "[REDACTED_EMAIL]" in out["observed"]
+    assert out["observed"].startswith("escribe a ")
+
+
+def test_redact_pii_walks_nested_structures():
+    out = redact_pii({"evidence": [{"line": "ping a@b.com"}]})
+    assert out["evidence"][0]["line"] == "ping [REDACTED_EMAIL]"
+
+
+def test_redact_pii_leaves_tokens_untouched():
+    # redact_pii solo trata PII (email); los secretos los corta assert_no_secrets.
+    secret = "ghp_0123456789abcdefghijklmnopqrstuvwxyz"
+    out = redact_pii({"workaround": secret})
+    assert out["workaround"] == secret
 
 
 def test_package_with_at_is_not_email():
