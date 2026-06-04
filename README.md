@@ -77,8 +77,23 @@ promoverse después a issues de `Vasallo94/afp-protocol` usando el sink remoto.
 Sin un `afp.json` declarado por la tool, AFP **nunca** auto-envía a un repo de
 terceros: solo escribe en `local` (spool) o `draft` (revisión humana). El envío
 remoto (p.ej. `github_issues`) es siempre **opt-in del mantenedor**, y además se
-verifica que la **base** del `subject_uri` del reporte (sin `#fragment` ni
-`@version` PURL) coincide con la del manifiesto (anti-spoofing).
+verifica que el `subject_uri` del reporte **cae bajo** el que declara el
+manifiesto (anti-spoofing):
+
+- **PURL**: misma base de paquete (la `@version` y el `#fragment` no cambian el dueño).
+- **http(s)/mcp**: mismo host/autoridad (`api.acme.com.evil.com` ≠ `api.acme.com`)
+  y el path del reporte es el del manifiesto o un sub-path por segmentos
+  (`/v1` posee `/v1/charges`, no `/v1abc`).
+
+## Semántica de entrega (at-least-once, no idempotente)
+
+`submit` deposita el reporte una vez por invocación y **no deduplica**: reenviar
+el mismo reporte abre otro issue (`github_issues`/`gitlab_issues`) o añade otra
+línea al spool (`local`). El `report_id` viaja en el cuerpo, pero hoy no se
+consulta para evitar duplicados. La deduplicación y el agrupamiento son
+responsabilidad del **Harvester** (§7 del spec), por diseño. Si reintentas tras
+un timeout de red cuyo envío sí llegó, revisa antes el destino. (Dedupe en el
+propio sink: backlog [#9](https://github.com/Vasallo94/afp-protocol/issues/9).)
 
 ## Sink GitLab (self-hosted / on-premise)
 
