@@ -27,7 +27,13 @@ _format_checker = jsonschema.FormatChecker()
 def _check_date_time(value: object) -> bool:
     if not isinstance(value, str):
         return True
-    datetime.fromisoformat(value)  # raises ValueError on bad input
+    dt = datetime.fromisoformat(value)  # raises ValueError on bad input
+    # RFC 3339 estricto: fromisoformat acepta fecha sin hora y sin offset, que
+    # son ambiguos para ordenar/agrupar. Exigimos componente de hora y zona.
+    if "T" not in value and "t" not in value:
+        raise ValueError("date-time requiere componente de hora (separador 'T')")
+    if dt.tzinfo is None:
+        raise ValueError("date-time requiere offset de zona (p.ej. 'Z' o '+00:00')")
     return True
 
 

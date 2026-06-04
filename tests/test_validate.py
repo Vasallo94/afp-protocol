@@ -77,3 +77,24 @@ def test_invalid_timestamp_fails():
     bad["timestamp"] = "not-a-date"
     with pytest.raises(ReportInvalid):
         validate_report(bad)
+
+
+def test_date_only_timestamp_fails():
+    # RFC 3339 estricto: una fecha sin componente de hora/offset es ambigua.
+    bad = _report_dict()
+    bad["timestamp"] = "2026-05-30"
+    with pytest.raises(ReportInvalid):
+        validate_report(bad)
+
+
+def test_naive_timestamp_without_offset_fails():
+    bad = _report_dict()
+    bad["timestamp"] = "2026-05-30T18:00:00"
+    with pytest.raises(ReportInvalid):
+        validate_report(bad)
+
+
+def test_timestamp_with_z_offset_passes():
+    ok = _report_dict()
+    ok["timestamp"] = "2026-05-30T18:00:00Z"
+    validate_report(ok)
