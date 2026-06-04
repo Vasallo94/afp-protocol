@@ -9,7 +9,7 @@ from afp.enums import FaultDomain, FrictionType, Severity
 from afp.manifest import ManifestInvalid, load_manifest
 from afp.models import FieldReport
 from afp.redact import SecretDetected
-from afp.sinks import SinkNotAllowed, route
+from afp.sinks import SinkNotAllowed, deposit, route
 from afp.validate import ReportInvalid, validate_report
 
 app = typer.Typer(help="AFP — Agent Feedback Protocol CLI")
@@ -31,7 +31,7 @@ def _build_report(from_path: Path) -> dict:
 def _submit_report(data: dict, *, dir_: Path, sink: str | None):
     decision = discover(dir_)
     chosen = route(sink, decision, report=data, base_dir=dir_)
-    ref = chosen.submit(data)
+    ref = deposit(chosen, data, base_dir=dir_)
     return chosen.name, ref
 
 
@@ -162,7 +162,7 @@ def submit(
     except SinkNotAllowed as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
-    ref = chosen.submit(data)
+    ref = deposit(chosen, data, base_dir=dir_)
     typer.echo(f"OK: depositado vía {chosen.name} -> {ref}")
 
 
@@ -267,5 +267,5 @@ def dogfood(
     except (ReportInvalid, SecretDetected, SinkNotAllowed) as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
-    ref = chosen.submit(report)
+    ref = deposit(chosen, report, base_dir=dir_)
     typer.echo(f"OK: dogfood report depositado vía {chosen.name} -> {ref}")

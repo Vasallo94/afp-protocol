@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -113,3 +114,43 @@ def route(requested, decision, report=None, *, base_dir: Path = Path(".")):
                 f"({manifest_subject!r})"
             )
     return get_sink(chosen, base_dir=base_dir, manifest=decision.manifest)
+
+
+def _ledger_path(base_dir: Path) -> Path:
+    return Path(base_dir) / ".afp" / "submitted.json"
+
+
+def _ledger_read(base_dir: Path) -> dict:
+    path = _ledger_path(base_dir)
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def deposit(sink, report: dict, *, base_dir: Path = Path(".")) -> str:
+    """Deposita un reporte con idempotencia para sinks REMOTOS.
+
+    Entrega at-least-once con un ledger local (`.afp/submitted.json`) que mapea
+    `report_id -> ref`: si un reporte ya se depositó en un sink remoto, un
+    reenvío (p.ej. reintento tras timeout de red) devuelve la ref previa en vez
+    de abrir un issue duplicado. Determinista y sin depender del lag de indexado
+    de búsqueda del proveedor. Los sinks locales (`local` spool, `draft`) no se
+    deduplican.
+    """
+    report_id = report.get("report_id")
+    is_remote = sink.name in REMOTE_SINKS
+    if is_remote and report_id:
+        prior = _ledger_read(base_dir).get(report_id)
+        if prior:
+            return prior
+    ref = sink.submit(report)
+    if is_remote and report_id:
+        path = _ledger_path(base_dir)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ledger = _ledger_read(base_dir)
+        ledger[report_id] = ref
+        path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
+    return ref

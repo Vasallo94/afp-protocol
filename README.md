@@ -91,15 +91,18 @@ La **PII directa** (email) **no aborta**: se **redacta** a `[REDACTED_EMAIL]` y 
 reporte continúa, porque un email mencionado en texto libre suele ser información
 útil para el mantenedor.
 
-## Semántica de entrega (at-least-once, no idempotente)
+## Semántica de entrega (at-least-once, idempotente en remotos)
 
-`submit` deposita el reporte una vez por invocación y **no deduplica**: reenviar
-el mismo reporte abre otro issue (`github_issues`/`gitlab_issues`) o añade otra
-línea al spool (`local`). El `report_id` viaja en el cuerpo, pero hoy no se
-consulta para evitar duplicados. La deduplicación y el agrupamiento son
-responsabilidad del **Harvester** (§7 del spec), por diseño. Si reintentas tras
-un timeout de red cuyo envío sí llegó, revisa antes el destino. (Dedupe en el
-propio sink: backlog [#9](https://github.com/Vasallo94/afp-protocol/issues/9).)
+Los **sinks remotos** (`github_issues`/`gitlab_issues`) son **idempotentes por
+`report_id`**: un ledger local (`.afp/submitted.json`) mapea `report_id -> ref`,
+así que reenviar el mismo reporte (p.ej. un reintento tras un timeout de red cuyo
+envío sí llegó) devuelve la ref previa en vez de abrir un issue duplicado. Es
+determinista y no depende del lag de indexado de búsqueda del proveedor.
+
+Los **sinks locales** no se deduplican: `local` es un spool de append y `draft`
+ya se sobreescribe por `report_id`. La deduplicación *semántica* entre reportes
+distintos (agrupar "14 agentes bloqueados en lo mismo") sigue siendo del
+**Harvester** (§7 del spec).
 
 ## Sink GitLab (self-hosted / on-premise)
 
