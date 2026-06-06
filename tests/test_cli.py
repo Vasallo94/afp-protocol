@@ -252,6 +252,7 @@ def test_review_notice_singular(tmp_path):
     drafts.mkdir(parents=True)
     (drafts / "afp_1.json").write_text("{}", encoding="utf-8")
     msg = review_notice(tmp_path)
+    assert msg is not None
     assert msg.startswith("AFP-REVIEW: 1 draft pendiente")
     assert f"afp drafts list --dir {tmp_path}" in msg
 
@@ -262,6 +263,7 @@ def test_review_notice_plural_counts_all_json_even_invalid(tmp_path):
     (drafts / "afp_1.json").write_text("{}", encoding="utf-8")
     (drafts / "afp_2.json").write_text("no es json válido", encoding="utf-8")
     msg = review_notice(tmp_path)
+    assert msg is not None
     assert msg.startswith("AFP-REVIEW: 2 drafts pendientes")
 
 
