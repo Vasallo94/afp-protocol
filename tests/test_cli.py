@@ -3,7 +3,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from afp.cli import app
+from afp.cli import app, review_notice
 
 runner = CliRunner()
 
@@ -241,3 +241,25 @@ def test_validate_manifest_rejects_invalid_manifest(tmp_path):
 
     assert result.exit_code != 0
     assert "INVALID" in result.output
+
+
+def test_review_notice_none_when_no_drafts(tmp_path):
+    assert review_notice(tmp_path) is None
+
+
+def test_review_notice_singular(tmp_path):
+    drafts = tmp_path / ".afp" / "drafts"
+    drafts.mkdir(parents=True)
+    (drafts / "afp_1.json").write_text("{}", encoding="utf-8")
+    msg = review_notice(tmp_path)
+    assert msg.startswith("AFP-REVIEW: 1 draft pendiente")
+    assert f"afp drafts list --dir {tmp_path}" in msg
+
+
+def test_review_notice_plural_counts_all_json_even_invalid(tmp_path):
+    drafts = tmp_path / ".afp" / "drafts"
+    drafts.mkdir(parents=True)
+    (drafts / "afp_1.json").write_text("{}", encoding="utf-8")
+    (drafts / "afp_2.json").write_text("no es json válido", encoding="utf-8")
+    msg = review_notice(tmp_path)
+    assert msg.startswith("AFP-REVIEW: 2 drafts pendientes")

@@ -89,6 +89,23 @@ def _render_report_markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
+def review_notice(dir_: Path) -> str | None:
+    """Mensaje de revisión si hay drafts pendientes; None si no hay.
+
+    Cuenta paths `*.json` bajo `.afp/drafts/` sin parsearlos: un draft inválido
+    sigue siendo algo que el humano debe atender. El prefijo `AFP-REVIEW:` es el
+    contrato de integración (humano + harness).
+    """
+    n = len(_draft_paths(dir_))
+    if n == 0:
+        return None
+    noun = "draft pendiente" if n == 1 else "drafts pendientes"
+    return (
+        f"AFP-REVIEW: {n} {noun} de revisión humana → "
+        f"afp drafts list --dir {str(Path(dir_))}"
+    )
+
+
 @app.command()
 def report(
     from_: Path = typer.Option(..., "--from", help="JSON parcial con los campos del reporte"),
