@@ -39,6 +39,21 @@ uv run afp drafts show afp_<id> --dir .
 uv run afp drafts promote afp_<id> --dir . --sink github_issues
 ```
 
+### Señal de revisión (`AFP-REVIEW:`)
+
+Cada vez que un envío se deposita como `draft` (`submit`, `report --submit`,
+`dogfood` sin manifiesto), AFP emite en **stderr** una línea con el prefijo
+estable `AFP-REVIEW:` indicando cuántos drafts hay pendientes y el comando para
+revisarlos:
+
+```
+AFP-REVIEW: 2 drafts pendientes de revisión humana → afp drafts list --dir .
+```
+
+Es un **contrato documentado**: un harness agéntico puede detectar el prefijo
+`AFP-REVIEW:` en stderr para mostrar al humano que hay drafts que aprobar, y un
+humano lo lee directamente. El `OK: ... -> draft:/ruta` sigue en stdout.
+
 `partial.json` mínimo:
 
 ```json
