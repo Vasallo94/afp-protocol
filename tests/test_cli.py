@@ -263,3 +263,52 @@ def test_review_notice_plural_counts_all_json_even_invalid(tmp_path):
     (drafts / "afp_2.json").write_text("no es json válido", encoding="utf-8")
     msg = review_notice(tmp_path)
     assert msg.startswith("AFP-REVIEW: 2 drafts pendientes")
+
+
+def test_dogfood_draft_emits_review_signal_on_stderr(tmp_path):
+    result = runner.invoke(app, [
+        "dogfood",
+        "--goal", "probar AFP sobre AFP",
+        "--expectation", "señal de revisión visible",
+        "--observed", "antes el draft se creaba en silencio",
+        "--friction-type", "missing_capability",
+        "--fault-domain", "tool",
+        "--severity", "degraded",
+        "--dir", str(tmp_path),
+    ])
+    assert result.exit_code == 0, result.output
+    assert "AFP-REVIEW:" in result.stderr
+    assert "AFP-REVIEW:" not in result.stdout
+
+
+def test_submit_draft_emits_review_signal_on_stderr(tmp_path):
+    src = tmp_path / "partial.json"
+    src.write_text(json.dumps(_partial()))
+    out = tmp_path / "report.json"
+    runner.invoke(app, ["report", "--from", str(src), "--out", str(out)])
+    result = runner.invoke(app, ["submit", str(out), "--dir", str(tmp_path), "--sink", "draft"])
+    assert result.exit_code == 0, result.output
+    assert "AFP-REVIEW:" in result.stderr
+    assert "OK: depositado" in result.stdout
+
+
+def test_report_submit_draft_emits_review_signal_on_stderr(tmp_path):
+    src = tmp_path / "partial.json"
+    src.write_text(json.dumps(_partial()))
+    result = runner.invoke(app, [
+        "report", "--from", str(src), "--submit",
+        "--dir", str(tmp_path), "--sink", "draft",
+    ])
+    assert result.exit_code == 0, result.output
+    assert "AFP-REVIEW:" in result.stderr
+
+
+def test_local_sink_does_not_emit_review_signal(tmp_path):
+    src = tmp_path / "partial.json"
+    src.write_text(json.dumps(_partial()))
+    out = tmp_path / "report.json"
+    runner.invoke(app, ["report", "--from", str(src), "--out", str(out)])
+    result = runner.invoke(app, ["submit", str(out), "--dir", str(tmp_path), "--sink", "local"])
+    assert result.exit_code == 0, result.output
+    assert "AFP-REVIEW:" not in result.stderr
+    assert "AFP-REVIEW:" not in result.stdout

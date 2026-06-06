@@ -106,6 +106,12 @@ def review_notice(dir_: Path) -> str | None:
     )
 
 
+def _announce_review(dir_: Path) -> None:
+    notice = review_notice(dir_)
+    if notice:
+        typer.echo(notice, err=True)
+
+
 @app.command()
 def report(
     from_: Path = typer.Option(..., "--from", help="JSON parcial con los campos del reporte"),
@@ -133,6 +139,8 @@ def report(
             typer.echo(f"ERROR: {exc}", err=True)
             raise typer.Exit(code=1)
         typer.echo(f"OK: depositado vía {sink_name} -> {ref}")
+        if sink_name == "draft":
+            _announce_review(dir_)
     elif not out:
         typer.echo(text)
 
@@ -181,6 +189,8 @@ def submit(
         raise typer.Exit(code=1)
     ref = deposit(chosen, data, base_dir=dir_)
     typer.echo(f"OK: depositado vía {chosen.name} -> {ref}")
+    if chosen.name == "draft":
+        _announce_review(dir_)
 
 
 @drafts_app.command("list")
@@ -286,3 +296,5 @@ def dogfood(
         raise typer.Exit(code=1)
     ref = deposit(chosen, report, base_dir=dir_)
     typer.echo(f"OK: dogfood report depositado vía {chosen.name} -> {ref}")
+    if chosen.name == "draft":
+        _announce_review(dir_)
