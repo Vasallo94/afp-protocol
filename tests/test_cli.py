@@ -301,6 +301,7 @@ def test_report_submit_draft_emits_review_signal_on_stderr(tmp_path):
     ])
     assert result.exit_code == 0, result.output
     assert "AFP-REVIEW:" in result.stderr
+    assert "AFP-REVIEW:" not in result.stdout
 
 
 def test_local_sink_does_not_emit_review_signal(tmp_path):
