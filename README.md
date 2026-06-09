@@ -74,6 +74,18 @@ Minimal `partial.json`:
 }
 ```
 
+## Harness integration (Claude Code skill)
+
+[integrations/claude-code/afp-report/](integrations/claude-code/afp-report/SKILL.md)
+is a drop-in skill that teaches an agent to file AFP drafts when it hits tool
+friction (always `--sink draft`; a human reviews and promotes). Install it by
+symlinking into your skills directory:
+
+```bash
+ln -s "$(pwd)/integrations/claude-code/afp-report" ~/.claude/skills/afp-report
+uv tool install git+https://github.com/Vasallo94/afp-protocol  # global `afp` CLI
+```
+
 ## Dogfooding AFP on AFP
 
 To report friction found while using this very implementation:
