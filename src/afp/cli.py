@@ -260,6 +260,51 @@ def drafts_promote(
     typer.echo(f"OK: depositado vía {sink_name} -> {submit_ref}")
 
 
+@drafts_app.command("discard")
+def drafts_discard(
+    ref: str = typer.Argument(..., help="report_id, stem o ruta del draft"),
+    dir_: Path = typer.Option(
+        Path("."), "--dir", help="Repo/directorio con .afp/drafts"
+    ),
+    reason: str = typer.Option(
+        ..., "--reason",
+        help="Por qué se descarta (p.ej. 'verified fixed: ...' o 'issue #N cerrado')",
+    ),
+):
+    """Descarta un draft revisado dejando constancia en .afp/discarded.json.
+
+    Cierra el ciclo de revisión para drafts cuya fricción ya está resuelta
+    (verificada contra la tool actual) o cuyo issue promovido se cerró. La
+    razón queda registrada para que el descarte sea auditable.
+    """
+    from datetime import datetime, timezone
+
+    try:
+        path = _resolve_draft(ref, dir_=dir_)
+    except FileNotFoundError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        report_id = json.loads(path.read_text(encoding="utf-8")).get("report_id", path.stem)
+    except (OSError, json.JSONDecodeError):
+        report_id = path.stem
+    ledger_path = Path(dir_) / ".afp" / "discarded.json"
+    try:
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        ledger = {}
+    ledger[report_id] = {
+        "reason": reason,
+        "discarded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger_path.write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    path.unlink()
+    typer.echo(f"OK: draft {report_id} descartado -> {ledger_path}")
+
+
 @app.command()
 def dogfood(
     goal: str = typer.Option(..., "--goal", help="Qué intentabas lograr usando AFP"),
