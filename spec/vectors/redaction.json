@@ -1,0 +1,89 @@
+[
+  {
+    "description": "block: OpenAI-style secret key in free text",
+    "outcome": "secret_block",
+    "data": { "observed": "the call failed with key sk-abcdefghijklmnopqrstuvwx" },
+    "offending_fields": ["observed"]
+  },
+  {
+    "description": "block: GitHub PAT nested inside inputs_redacted",
+    "outcome": "secret_block",
+    "data": { "inputs_redacted": { "auth": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcd" } },
+    "offending_fields": ["inputs_redacted"]
+  },
+  {
+    "description": "block: AWS access key id inside an evidence list",
+    "outcome": "secret_block",
+    "data": { "evidence": ["request used AKIAIOSFODNN7EXAMPLE"] },
+    "offending_fields": ["evidence"]
+  },
+  {
+    "description": "block: PEM private key header",
+    "outcome": "secret_block",
+    "data": { "observed": "stdout dumped -----BEGIN RSA PRIVATE KEY----- by mistake" },
+    "offending_fields": ["observed"]
+  },
+  {
+    "description": "block: JWT in free text",
+    "outcome": "secret_block",
+    "data": { "workaround": "reused eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abcdef123456 from the cache" },
+    "offending_fields": ["workaround"]
+  },
+  {
+    "description": "block: Bearer token",
+    "outcome": "secret_block",
+    "data": { "observed": "sent Authorization: Bearer abcdefghij1234567890XYZ" },
+    "offending_fields": ["observed"]
+  },
+  {
+    "description": "block: Slack bot token",
+    "outcome": "secret_block",
+    "data": { "observed": "the env leaked xoxb-1234567890-abcdef" },
+    "offending_fields": ["observed"]
+  },
+  {
+    "description": "block: key=value style secret assignment",
+    "outcome": "secret_block",
+    "data": { "observed": "config printed api_key = 'abcd1234efgh'" },
+    "offending_fields": ["observed"]
+  },
+  {
+    "description": "block: secrets in two fields are both reported",
+    "outcome": "secret_block",
+    "data": {
+      "observed": "failed with sk-abcdefghijklmnopqrstuvwx",
+      "workaround": "switched to AKIAIOSFODNN7EXAMPLE"
+    },
+    "offending_fields": ["observed", "workaround"]
+  },
+  {
+    "description": "redact: email in free text is replaced and the report continues",
+    "outcome": "ok",
+    "data": { "observed": "the error page told me to mail support@acme.com for help" },
+    "expected": { "observed": "the error page told me to mail [REDACTED_EMAIL] for help" }
+  },
+  {
+    "description": "redact: email nested in inputs_redacted is replaced",
+    "outcome": "ok",
+    "data": { "inputs_redacted": { "contact": "a.b@example.io", "amount": "100" } },
+    "expected": { "inputs_redacted": { "contact": "[REDACTED_EMAIL]", "amount": "100" } }
+  },
+  {
+    "description": "redact: multiple emails in one string are all replaced",
+    "outcome": "ok",
+    "data": { "observed": "cc'd alice@corp.example and bob@corp.example" },
+    "expected": { "observed": "cc'd [REDACTED_EMAIL] and [REDACTED_EMAIL]" }
+  },
+  {
+    "description": "no-op: a PURL @version is not mistaken for an email",
+    "outcome": "ok",
+    "data": { "subject_uri": "pkg:npm/eslint@9.2.0", "goal": "lint with eslint@9.2.0" },
+    "expected": { "subject_uri": "pkg:npm/eslint@9.2.0", "goal": "lint with eslint@9.2.0" }
+  },
+  {
+    "description": "no-op: clean report passes through unchanged",
+    "outcome": "ok",
+    "data": { "goal": "lint the project", "observed": "plain-text output" },
+    "expected": { "goal": "lint the project", "observed": "plain-text output" }
+  }
+]

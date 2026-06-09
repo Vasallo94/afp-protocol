@@ -1,0 +1,416 @@
+[
+  {
+    "description": "valid: minimal core-only report with PURL subject",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000001",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "JSON output with the errors",
+      "observed": "plain-text output with no structure",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: report with all extension fields populated",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000002",
+      "subject_uri": "pkg:npm/eslint@9.2.0",
+      "goal": "auto-fix lint problems before committing",
+      "expectation": "--fix would correct the quotes and exit 0",
+      "observed": "exited 1 without explaining which rule was not auto-fixable",
+      "friction_type": "confusing_interface",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z",
+      "tool_version": "9.2.0",
+      "plan_step": "3/6 — clean up before tests",
+      "workaround": "parsed stdout by hand",
+      "inputs_redacted": { "args": "--fix ." },
+      "harness": "claude-code",
+      "harness_version": "2.1.0",
+      "agent_model": "claude-fable-5",
+      "tool_call_name": "Bash",
+      "tool_call_id": "call_123",
+      "trace_id": "otel-4bf92f3577b34da6a3ce929d0e0e4736",
+      "contract_ref": "https://eslint.org/docs/latest/use/command-line-interface",
+      "evidence": ["exit code 1", "no rule name in stderr"],
+      "confidence": "high",
+      "reproducibility": "deterministic",
+      "dedupe_key": "eslint-fix-silent-failure"
+    }
+  },
+  {
+    "description": "valid: unknown extension field is accepted (forward compatibility, ADR-0001)",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000003",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z",
+      "future_extension_field": { "anything": ["goes", "here"] }
+    }
+  },
+  {
+    "description": "valid: newer minor schema_version is accepted (afp/0.99)",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.99",
+      "report_id": "afp_01HVEC0000000000000000004",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: mcp subject with #fragment naming a sub-tool",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000005",
+      "subject_uri": "mcp://github.com/user/repo#tool_name",
+      "goal": "call the tool",
+      "expectation": "a structured response",
+      "observed": "a timeout",
+      "friction_type": "bug",
+      "fault_domain": "timeout",
+      "severity": "blocked",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: https API subject",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000006",
+      "subject_uri": "https://api.stripe.com/v1/charges",
+      "goal": "create a test charge in sandbox",
+      "expectation": "a clear error if 'currency' is missing",
+      "observed": "generic 400 that does not name the field",
+      "friction_type": "wrong_output",
+      "fault_domain": "ambiguous_contract",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: afp:skill subject",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000007",
+      "subject_uri": "afp:skill/superpowers/test-driven-development",
+      "goal": "apply TDD on a codebase with no prior tests",
+      "expectation": "guidance for the no-test-runner case",
+      "observed": "assumes a test runner already exists",
+      "friction_type": "missing_capability",
+      "fault_domain": "tool",
+      "severity": "blocked",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: afp:bin opaque binary subject",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000008",
+      "subject_uri": "afp:bin/sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "goal": "run the vendored binary",
+      "expectation": "it prints version info",
+      "observed": "segfault on start",
+      "friction_type": "bug",
+      "fault_domain": "tool",
+      "severity": "blocked",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "valid: timestamp with numeric UTC offset instead of Z",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000009",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T20:00:00+02:00"
+    }
+  },
+  {
+    "description": "valid: plain http subject scheme",
+    "valid": true,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000010",
+      "subject_uri": "http://internal.corp/api/v2",
+      "goal": "query the internal API",
+      "expectation": "a JSON body",
+      "observed": "an HTML error page",
+      "friction_type": "wrong_output",
+      "fault_domain": "environment_issue",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: missing required field (goal)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000011",
+      "subject_uri": "pkg:pypi/ruff",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: empty string in a required field (goal, minLength 1)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000012",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: friction_type outside the closed enum",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000013",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "annoying",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: fault_domain outside the closed enum",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000014",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "users_fault",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: severity outside the closed enum",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000015",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "catastrophic",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: severity has wrong JSON type (number)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000016",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": 5,
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: different major schema_version is rejected (afp/1.0)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/1.0",
+      "report_id": "afp_01HVEC0000000000000000017",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: schema_version without the afp/ prefix",
+    "valid": false,
+    "data": {
+      "schema_version": "0.2",
+      "report_id": "afp_01HVEC0000000000000000018",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: timestamp is date-only (RFC 3339 requires a time component)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000019",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30"
+    }
+  },
+  {
+    "description": "invalid: timestamp lacks a UTC offset (RFC 3339 requires one)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000020",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00"
+    }
+  },
+  {
+    "description": "invalid: timestamp is not a date at all",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000021",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "yesterday evening"
+    }
+  },
+  {
+    "description": "invalid: subject_uri with unsupported scheme (ftp)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000022",
+      "subject_uri": "ftp://files.example.com/tool",
+      "goal": "download the tool",
+      "expectation": "a file listing",
+      "observed": "connection refused",
+      "friction_type": "bug",
+      "fault_domain": "environment_issue",
+      "severity": "blocked",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: subject_uri is a malformed PURL (missing name component)",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000023",
+      "subject_uri": "pkg:pypi",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: mcp subject with empty locator",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000024",
+      "subject_uri": "mcp://",
+      "goal": "call the tool",
+      "expectation": "a response",
+      "observed": "nothing",
+      "friction_type": "bug",
+      "fault_domain": "tool",
+      "severity": "blocked",
+      "timestamp": "2026-05-30T18:00:00Z"
+    }
+  },
+  {
+    "description": "invalid: missing timestamp",
+    "valid": false,
+    "data": {
+      "schema_version": "afp/0.2",
+      "report_id": "afp_01HVEC0000000000000000025",
+      "subject_uri": "pkg:pypi/ruff",
+      "goal": "lint the project",
+      "expectation": "structured output",
+      "observed": "unstructured output",
+      "friction_type": "wrong_output",
+      "fault_domain": "tool",
+      "severity": "degraded"
+    }
+  }
+]

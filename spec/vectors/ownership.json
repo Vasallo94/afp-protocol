@@ -1,0 +1,116 @@
+[
+  {
+    "description": "purl: @version does not change the owner",
+    "report_subject": "pkg:npm/eslint@9.2.0",
+    "manifest_subject": "pkg:npm/eslint",
+    "owned": true
+  },
+  {
+    "description": "purl: #fragment names a sub-tool of the owned package",
+    "report_subject": "pkg:npm/eslint#no-unused-vars",
+    "manifest_subject": "pkg:npm/eslint",
+    "owned": true
+  },
+  {
+    "description": "purl: different package name is not owned",
+    "report_subject": "pkg:npm/evil-package",
+    "manifest_subject": "pkg:npm/eslint",
+    "owned": false
+  },
+  {
+    "description": "purl: same name under a different package type is not owned",
+    "report_subject": "pkg:pypi/eslint",
+    "manifest_subject": "pkg:npm/eslint",
+    "owned": false
+  },
+  {
+    "description": "https: per-segment sub-path is owned (/v1 owns /v1/charges)",
+    "report_subject": "https://api.acme.com/v1/charges",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": true
+  },
+  {
+    "description": "https: string-prefix is not segment-prefix (/v1 does not own /v1abc)",
+    "report_subject": "https://api.acme.com/v1abc",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": false
+  },
+  {
+    "description": "https: suffixed host is a different authority (anti-spoofing)",
+    "report_subject": "https://api.acme.com.evil.com/v1/charges",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": false
+  },
+  {
+    "description": "https: host comparison is case-insensitive",
+    "report_subject": "https://API.Acme.com/v1/charges",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": true
+  },
+  {
+    "description": "https: exact same path is owned",
+    "report_subject": "https://api.acme.com/v1",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": true
+  },
+  {
+    "description": "https: manifest with no path owns every path on the host",
+    "report_subject": "https://api.acme.com/anything/at/all",
+    "manifest_subject": "https://api.acme.com",
+    "owned": true
+  },
+  {
+    "description": "https: query and fragment are ignored; trailing slash is normalized",
+    "report_subject": "https://api.acme.com/v1/charges?limit=5#frag",
+    "manifest_subject": "https://api.acme.com/v1/",
+    "owned": true
+  },
+  {
+    "description": "https: an explicit port makes a different authority",
+    "report_subject": "https://api.acme.com:8443/v1",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": false
+  },
+  {
+    "description": "scheme mismatch is never owned (http report vs https manifest)",
+    "report_subject": "http://api.acme.com/v1",
+    "manifest_subject": "https://api.acme.com/v1",
+    "owned": false
+  },
+  {
+    "description": "mcp: #fragment names a sub-tool of the owned server",
+    "report_subject": "mcp://github.com/user/repo#tool_name",
+    "manifest_subject": "mcp://github.com/user/repo",
+    "owned": true
+  },
+  {
+    "description": "mcp: a different repo path is not owned",
+    "report_subject": "mcp://github.com/user/other-repo",
+    "manifest_subject": "mcp://github.com/user/repo",
+    "owned": false
+  },
+  {
+    "description": "afp: equality after stripping #fragment",
+    "report_subject": "afp:skill/superpowers/test-driven-development#step-3",
+    "manifest_subject": "afp:skill/superpowers/test-driven-development",
+    "owned": true
+  },
+  {
+    "description": "afp: a different skill name is not owned",
+    "report_subject": "afp:skill/superpowers/debugging",
+    "manifest_subject": "afp:skill/superpowers/test-driven-development",
+    "owned": false
+  },
+  {
+    "description": "empty report subject is never owned",
+    "report_subject": "",
+    "manifest_subject": "pkg:npm/eslint",
+    "owned": false
+  },
+  {
+    "description": "empty manifest subject owns nothing",
+    "report_subject": "pkg:npm/eslint",
+    "manifest_subject": "",
+    "owned": false
+  }
+]

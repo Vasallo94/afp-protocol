@@ -1,0 +1,135 @@
+[
+  {
+    "description": "valid: github_issues sink with repo and label",
+    "valid": true,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "mcp://github.com/user/nadir-astro",
+      "sink": { "type": "github_issues", "repo": "user/nadir-astro", "label": "afp-report" },
+      "redaction": "required",
+      "accepts_remote": true
+    }
+  },
+  {
+    "description": "valid: gitlab_issues sink with self-hosted host",
+    "valid": true,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "mcp://gitlab.corp.example/group/project",
+      "sink": { "type": "gitlab_issues", "host": "gitlab.corp.example", "repo": "group/project", "label": "afp-report" },
+      "redaction": "required",
+      "accepts_remote": true
+    }
+  },
+  {
+    "description": "valid: minimal manifest with local sink and defaults",
+    "valid": true,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "type": "local" }
+    }
+  },
+  {
+    "description": "valid: draft sink with optional redaction and accepts_remote false",
+    "valid": true,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:npm/sometool",
+      "sink": { "type": "draft" },
+      "redaction": "optional",
+      "accepts_remote": false
+    }
+  },
+  {
+    "description": "invalid: missing afp_version",
+    "valid": false,
+    "data": {
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "type": "local" }
+    }
+  },
+  {
+    "description": "invalid: missing subject_uri",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "sink": { "type": "local" }
+    }
+  },
+  {
+    "description": "invalid: missing sink",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool"
+    }
+  },
+  {
+    "description": "invalid: unknown top-level field (manifest is strict, unlike reports)",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "type": "local" },
+      "unknown_field": true
+    }
+  },
+  {
+    "description": "invalid: sink without type",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "repo": "user/repo" }
+    }
+  },
+  {
+    "description": "invalid: sink type outside the closed enum",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "type": "carrier_pigeon" }
+    }
+  },
+  {
+    "description": "invalid: github_issues sink without repo",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "mcp://github.com/user/repo",
+      "sink": { "type": "github_issues", "label": "afp-report" },
+      "accepts_remote": true
+    }
+  },
+  {
+    "description": "invalid: gitlab_issues sink without repo",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "mcp://gitlab.corp.example/group/project",
+      "sink": { "type": "gitlab_issues", "host": "gitlab.corp.example" },
+      "accepts_remote": true
+    }
+  },
+  {
+    "description": "invalid: redaction outside the closed enum",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "pkg:pypi/sometool",
+      "sink": { "type": "local" },
+      "redaction": "never"
+    }
+  },
+  {
+    "description": "invalid: subject_uri with unsupported scheme",
+    "valid": false,
+    "data": {
+      "afp_version": "0.2",
+      "subject_uri": "ftp://files.example.com/tool",
+      "sink": { "type": "local" }
+    }
+  }
+]
