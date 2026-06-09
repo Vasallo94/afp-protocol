@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://afp.dev/schema/field_report.schema.json",
+  "title": "AFP Field Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version", "report_id", "subject_uri", "goal", "expectation",
+    "observed", "friction_type", "fault_domain", "severity", "timestamp"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^afp/0\\.\\d+$" },
+    "report_id": { "type": "string", "minLength": 1 },
+    "subject_uri": { "type": "string", "minLength": 1 },
+    "goal": { "type": "string", "minLength": 1 },
+    "expectation": { "type": "string", "minLength": 1 },
+    "observed": { "type": "string", "minLength": 1 },
+    "friction_type": {
+      "type": "string",
+      "enum": ["bug", "undocumented_behavior", "missing_capability",
+               "confusing_interface", "wrong_output", "integration_mismatch"]
+    },
+    "fault_domain": {
+      "type": "string",
+      "enum": ["tool", "agent_misuse", "ambiguous_contract", "environment_issue",
+               "permission_denied", "rate_limit", "timeout"]
+    },
+    "severity": { "type": "string", "enum": ["blocked", "degraded", "cosmetic"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "tool_version": { "type": "string" },
+    "plan_step": { "type": "string" },
+    "workaround": { "type": "string" },
+    "inputs_redacted": { "type": "object" },
+    "harness": { "type": "string" },
+    "harness_version": { "type": "string" },
+    "agent_model": { "type": "string" },
+    "tool_call_name": { "type": "string" },
+    "tool_call_id": { "type": "string" },
+    "trace_id": { "type": "string" },
+    "contract_ref": { "type": "string" },
+    "evidence": { "type": "array" },
+    "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+    "reproducibility": {
+      "type": "string", "enum": ["deterministic", "intermittent", "once"]
+    },
+    "dedupe_key": { "type": "string" }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://afp.dev/schema/afp_manifest.schema.json",
+  "title": "AFP Manifest (afp.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["afp_version", "subject_uri", "sink"],
+  "properties": {
+    "afp_version": { "type": "string" },
+    "subject_uri": { "type": "string", "minLength": 1 },
+    "sink": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["github_issues", "gitlab_issues", "local", "draft"]
+        },
+        "repo": { "type": "string" },
+        "label": { "type": "string" },
+        "host": { "type": "string" },
+        "path": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "redaction": { "type": "string", "enum": ["required", "optional"] },
+    "accepts_remote": { "type": "boolean" },
+    "schema_extensions": { "type": "array" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sink": {
+            "properties": { "type": { "const": "github_issues" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sink": { "required": ["type", "repo"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sink": {
+            "properties": { "type": { "const": "gitlab_issues" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sink": { "required": ["type", "repo"] }
+        }
+      }
+    }
+  ]
+}
