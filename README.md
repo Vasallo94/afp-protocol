@@ -43,6 +43,10 @@ uv run afp drafts show afp_<id> --dir .
 
 # Explicit promotion after human review
 uv run afp drafts promote afp_<id> --dir . --sink github_issues
+
+# Discard a stale draft (friction verified fixed, or promoted issue closed);
+# reason + timestamp are recorded in .afp/discarded.json
+uv run afp drafts discard afp_<id> --dir . --reason "verified fixed: ..."
 ```
 
 ### Review signal (`AFP-REVIEW:`)
@@ -74,17 +78,21 @@ Minimal `partial.json`:
 }
 ```
 
-## Harness integration (Claude Code skill)
+## Harness integrations
 
-[integrations/claude-code/afp-report/](integrations/claude-code/afp-report/SKILL.md)
-is a drop-in skill that teaches an agent to file AFP drafts when it hits tool
-friction (always `--sink draft`; a human reviews and promotes). Install it by
-symlinking into your skills directory:
+[integrations/](integrations/) teaches agents to file AFP drafts when they hit
+tool friction, and to verify/discard stale drafts (always `--sink draft`; a
+human reviews and promotes):
 
-```bash
-ln -s "$(pwd)/integrations/claude-code/afp-report" ~/.claude/skills/afp-report
-uv tool install git+https://github.com/Vasallo94/afp-protocol  # global `afp` CLI
-```
+- **Claude Code**: [skill](integrations/claude-code/afp-report/SKILL.md) —
+  `ln -s "$(pwd)/integrations/claude-code/afp-report" ~/.claude/skills/afp-report`
+- **Cursor**: [rule](integrations/cursor/afp-report.mdc) — copy into `.cursor/rules/`
+- **Any other harness** (deep agents, custom runtimes):
+  [system-prompt block](integrations/generic/AFP-INSTRUCTIONS.md) — includes
+  the meta case of a harness collecting feedback about itself
+
+All need the CLI:
+`uv tool install git+https://github.com/Vasallo94/afp-protocol`
 
 ## Dogfooding AFP on AFP
 

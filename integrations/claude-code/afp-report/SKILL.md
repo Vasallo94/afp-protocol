@@ -1,6 +1,6 @@
 ---
 name: afp-report
-description: File an AFP (Agent Feedback Protocol) field report when a tool you used misbehaved — a bug, undocumented behavior, missing capability, confusing interface, or wrong output that broke or degraded your plan. Use after you hit real tool friction (especially if you needed a workaround), or when the user asks to "report this friction", "reporta esta fricción", or "file an AFP report". Reports land as local drafts for human review; nothing is sent anywhere automatically.
+description: File an AFP (Agent Feedback Protocol) field report when a tool you used misbehaved — a bug, undocumented behavior, missing capability, confusing interface, or wrong output that broke or degraded your plan. Use after you hit real tool friction (especially if you needed a workaround), when the user asks to "report this friction", "reporta esta fricción", or "file an AFP report", or when reviewing/verifying existing AFP drafts (AFP-REVIEW signal, "revisa los drafts"). Reports land as local drafts for human review; nothing is sent anywhere automatically.
 ---
 
 # Filing an AFP field report
@@ -73,6 +73,31 @@ workaround often suggests the fix.
    stderr. Tell the user, including the exact review command. Drafts are
    reviewed and promoted by a HUMAN (`afp drafts list/show/promote`) — never
    promote to a remote sink yourself.
+
+## Reviewing existing drafts (verify, then discard or escalate)
+
+When you find pending drafts (the `AFP-REVIEW:` signal, or
+`afp drafts list --dir <DIR>`), you can do the verification legwork:
+
+1. **Read the draft** (`afp drafts show <id> --dir <DIR>`) and **reproduce
+   the scenario against the current tool** — call it with the same inputs,
+   or inspect its current schema/docs if the friction was contractual.
+2. **Fixed?** If the reported friction no longer reproduces (the fix landed),
+   discard the draft citing your evidence:
+
+   ```bash
+   afp drafts discard <id> --dir <DIR> --reason "verified fixed: <what you observed>"
+   ```
+
+3. **Promoted and closed?** If the draft was already promoted to an issue and
+   that issue is closed, discard it too:
+   `--reason "issue #N closed"`.
+4. **Still broken?** Report your reproduction to the human. **Promotion to a
+   remote sink remains a human decision** — verifying and discarding stale
+   drafts is yours; escalating to the maintainer's tracker is not.
+
+Discards are auditable: the reason and timestamp land in
+`.afp/discarded.json`.
 
 ## The golden rule
 
