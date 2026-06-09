@@ -9,7 +9,8 @@ Python reference implementation of the **return path MCP lacks**:
 a standard channel for an AI agent to report the *friction* it hit while
 using a tool, addressed to that tool's maintainer.
 
-Spec: `docs/superpowers/specs/2026-05-30-afp-protocol-design.md` (Spanish; English normative spec planned)
+**Normative spec:** [spec/SPEC.md](spec/SPEC.md) (RFC 2119) · canonical [JSON Schemas](spec/schemas/) · [conformance test vectors](spec/vectors/)
+Design rationale (Spanish): `docs/superpowers/specs/2026-05-30-afp-protocol-design.md`
 
 ## Installation
 

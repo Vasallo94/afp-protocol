@@ -6,7 +6,8 @@ Implementación de referencia en Python del **camino de vuelta** que le falta a 
 un canal estándar para que un agente de IA reporte la *fricción* que encontró al
 usar una herramienta, dirigido al mantenedor de esa herramienta.
 
-Spec: `docs/superpowers/specs/2026-05-30-afp-protocol-design.md`
+**Spec normativa:** [spec/SPEC.md](spec/SPEC.md) (inglés, RFC 2119) · [JSON Schemas canónicos](spec/schemas/) · [test vectors de conformidad](spec/vectors/)
+Documento de diseño (razonamiento): `docs/superpowers/specs/2026-05-30-afp-protocol-design.md`
 
 ## Instalación
 
