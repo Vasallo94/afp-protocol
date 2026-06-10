@@ -8,10 +8,13 @@ Claude-specific in it. Requires the `afp` CLI on PATH
 
 **The meta case — a harness reporting on itself.** A harness that embeds this
 block and publishes its own `afp.json` closes the loop on itself: the LLM
-living inside it files field reports *about the harness it is running on*
-(`subject_uri: afp:app/<harness>/<component>` or the harness's own
-`mcp://...`), and those drafts route back to the harness's maintainers. The
-agent becomes the QA of its own cage.
+living inside it files field reports *about the harness it is running on*,
+and those drafts route back to the harness's maintainers. The agent becomes
+the QA of its own cage. Mind the ownership rule for `afp:` subjects (equality
+after stripping `#fragment`): the report's subject must be the manifest's
+base with the component as a fragment —
+`afp:app/<harness>/<harness>#<component>` — or promotion will be blocked by
+anti-spoofing.
 
 ---
 
@@ -27,7 +30,8 @@ had to invent is a strong signal to file.
 1. Determine the deterministic subject_uri:
    packages `pkg:npm/eslint@9.2.0` · MCP tools `mcp://github.com/owner/repo#tool`
    · HTTP APIs `https://api.example.com/v1/x` · skills `afp:skill/ns/name`
-   · this harness itself `afp:app/<harness>/<component>`.
+   · this harness itself `afp:app/<harness>/<harness>#<component>` (the
+   manifest owns the base; components go in the `#fragment`).
 
 2. Write a partial report (JSON) with: subject_uri, goal (what you were
    trying to achieve, product language), expectation, observed,
