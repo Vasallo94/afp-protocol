@@ -71,6 +71,42 @@ humano lo lee directamente. El `OK: ... -> draft:/ruta` sigue en stdout.
 }
 ```
 
+## Integraciones de harness
+
+[integrations/](integrations/) enseña a los agentes a emitir drafts AFP cuando
+encuentran fricción con una herramienta, y a verificar/descartar drafts antiguos
+(siempre `--sink draft`; una persona revisa y promueve).
+
+Instala AFP una vez:
+
+```bash
+uv tool install git+https://github.com/Vasallo94/afp-protocol
+```
+
+Después instala la integración del harness:
+
+```bash
+afp integrations install codex --global
+afp integrations install claude-code --global
+afp integrations install cursor --project .
+afp doctor
+```
+
+Las integraciones se copian desde recursos empaquetados; no hace falta clonar
+este repo. Los agentes solo emiten drafts. La promoción a issues la decide un
+humano con `afp drafts list/show` y `afp drafts promote`.
+
+Los mantenedores de herramientas pueden inicializar el manifiesto de confianza
+que habilita la promoción remota revisada:
+
+```bash
+afp init \
+  --dir . \
+  --subject mcp://github.com/acme/weather-mcp \
+  --sink github_issues \
+  --repo acme/weather-mcp
+```
+
 ## Dogfooding de AFP sobre AFP
 
 Para reportar fricción encontrada usando esta propia implementación:

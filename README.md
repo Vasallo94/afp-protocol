@@ -82,17 +82,37 @@ Minimal `partial.json`:
 
 [integrations/](integrations/) teaches agents to file AFP drafts when they hit
 tool friction, and to verify/discard stale drafts (always `--sink draft`; a
-human reviews and promotes):
+human reviews and promotes).
 
-- **Claude Code**: [skill](integrations/claude-code/afp-report/SKILL.md) —
-  `ln -s "$(pwd)/integrations/claude-code/afp-report" ~/.claude/skills/afp-report`
-- **Cursor**: [rule](integrations/cursor/afp-report.mdc) — copy into `.cursor/rules/`
-- **Any other harness** (deep agents, custom runtimes):
-  [system-prompt block](integrations/generic/AFP-INSTRUCTIONS.md) — includes
-  the meta case of a harness collecting feedback about itself
+Install AFP once:
 
-All need the CLI:
-`uv tool install git+https://github.com/Vasallo94/afp-protocol`
+```bash
+uv tool install git+https://github.com/Vasallo94/afp-protocol
+```
+
+Then install the harness integration you use:
+
+```bash
+afp integrations install codex --global
+afp integrations install claude-code --global
+afp integrations install cursor --project .
+afp doctor
+```
+
+Integrations install from packaged resources; cloning this repository is not
+required. Agents emit drafts only. Humans review with `afp drafts list/show`
+and promote with `afp drafts promote`.
+
+Tool maintainers can initialize the trust manifest that enables reviewed remote
+promotion:
+
+```bash
+afp init \
+  --dir . \
+  --subject mcp://github.com/acme/weather-mcp \
+  --sink github_issues \
+  --repo acme/weather-mcp
+```
 
 ## Dogfooding AFP on AFP
 
