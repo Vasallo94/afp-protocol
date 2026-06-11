@@ -22,4 +22,9 @@ build-backend = "hatchling.build"
 packages = ["src/afp"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "mypy>=2.1.0",
+    "pytest>=8",
+    "ruff>=0.15.17",
+    "types-jsonschema>=4.26.0.20260518",
+]
