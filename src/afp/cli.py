@@ -14,6 +14,7 @@ from afp.integration_manager import (
 )
 from afp.manifest import ManifestInvalid, load_manifest
 from afp.models import FieldReport
+from afp.onboarding import OnboardingError, build_manifest, write_manifest
 from afp.redact import SecretDetected
 from afp.sinks import SinkNotAllowed, deposit, route
 from afp.validate import ReportInvalid, validate_report
@@ -156,6 +157,32 @@ def integrations_install(
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"OK: {name} instalado en {destination}")
+
+
+@app.command("init")
+def init_manifest(
+    subject: str = typer.Option(..., "--subject", help="AFP subject_uri for this tool/repo"),
+    sink: str = typer.Option(..., "--sink", help="Remote sink: github_issues or gitlab_issues"),
+    repo: str | None = typer.Option(None, "--repo", help="Remote repo, e.g. owner/name"),
+    host: str | None = typer.Option(None, "--host", help="GitLab host for gitlab_issues"),
+    label: str = typer.Option("afp-report", "--label", help="Issue label"),
+    dir_: Path = typer.Option(Path("."), "--dir", help="Directory where afp.json is written"),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing afp.json"),
+):
+    """Genera un afp.json válido para el repo/tool actual."""
+    try:
+        manifest = build_manifest(
+            subject=subject,
+            sink=sink,
+            repo=repo,
+            host=host,
+            label=label,
+        )
+        target = write_manifest(dir_=dir_, manifest=manifest, force=force)
+    except OnboardingError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"OK: manifiesto escrito en {target}")
 
 
 @app.command()
