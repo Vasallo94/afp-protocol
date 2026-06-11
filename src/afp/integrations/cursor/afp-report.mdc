@@ -1,0 +1,36 @@
+---
+description: File an AFP field report when a tool misbehaved (bug, undocumented behavior, missing capability, confusing interface, wrong output), or when reviewing pending AFP drafts. Drafts only — never auto-submit anywhere.
+alwaysApply: false
+---
+
+# Tool friction reporting (AFP)
+
+When a tool you used misbehaves and it broke or degraded the plan — and the
+maintainer could act on it — file an AFP field report. A workaround you had to
+invent is a strong signal to file. Do not file for your own avoidable mistakes
+or one-off environment flakes.
+
+1. Deterministic `subject_uri`: packages `pkg:npm/eslint@9.2.0` · MCP tools
+   `mcp://github.com/owner/repo#tool` · HTTP APIs `https://api.example.com/v1/x`
+   · skills `afp:skill/ns/name`.
+
+2. Partial report (JSON file): `subject_uri`, `goal` (product language),
+   `expectation`, `observed`,
+   `friction_type` (bug | undocumented_behavior | missing_capability |
+   confusing_interface | wrong_output | integration_mismatch),
+   `fault_domain` (tool | agent_misuse | ambiguous_contract |
+   environment_issue | permission_denied | rate_limit | timeout — be honest),
+   `severity` (blocked | degraded | cosmetic), optional `workaround`,
+   `harness: "cursor"`, `tool_call_name`. No secrets or personal data.
+
+3. Deposit as draft, never anything else:
+   `afp report --from <partial.json> --submit --dir <tool repo or project root> --sink draft`
+   (install: `uv tool install git+https://github.com/Vasallo94/afp-protocol`)
+
+4. Relay the `AFP-REVIEW:` stderr line to the human. Promotion to a remote
+   sink is a HUMAN decision, never yours.
+
+Reviewing pending drafts (`afp drafts list --dir <DIR>`): reproduce the
+friction against the current tool; if fixed or its promoted issue closed,
+`afp drafts discard <id> --dir <DIR> --reason "verified fixed: <evidence>"`.
+If it still reproduces, tell the human.
