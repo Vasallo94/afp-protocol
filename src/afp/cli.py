@@ -14,7 +14,7 @@ from afp.integration_manager import (
 )
 from afp.manifest import ManifestInvalid, load_manifest
 from afp.models import FieldReport
-from afp.onboarding import OnboardingError, build_manifest, write_manifest
+from afp.onboarding import OnboardingError, build_manifest, doctor_checks, write_manifest
 from afp.redact import SecretDetected
 from afp.sinks import SinkNotAllowed, deposit, route
 from afp.validate import ReportInvalid, validate_report
@@ -183,6 +183,15 @@ def init_manifest(
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"OK: manifiesto escrito en {target}")
+
+
+@app.command("doctor")
+def doctor(
+    dir_: Path = typer.Option(Path("."), "--dir", help="Directory to inspect"),
+):
+    """Comprueba si AFP está listo en el entorno actual."""
+    for check in doctor_checks(dir_=dir_, home=Path.home()):
+        typer.echo(f"{check.status:<7} {check.name}: {check.detail}")
 
 
 @app.command()
