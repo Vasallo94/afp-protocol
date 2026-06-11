@@ -6,6 +6,12 @@ import typer
 from afp import __version__
 from afp.discovery import discover
 from afp.enums import FaultDomain, FrictionType, Severity
+from afp.integration_manager import (
+    INTEGRATIONS,
+    IntegrationError,
+    install_integration,
+    status_for,
+)
 from afp.manifest import ManifestInvalid, load_manifest
 from afp.models import FieldReport
 from afp.redact import SecretDetected
@@ -14,7 +20,9 @@ from afp.validate import ReportInvalid, validate_report
 
 app = typer.Typer(help="AFP — Agent Feedback Protocol CLI")
 drafts_app = typer.Typer(help="Revisa y promueve drafts locales AFP.")
+integrations_app = typer.Typer(help="Instala y verifica integraciones AFP para harnesses.")
 app.add_typer(drafts_app, name="drafts")
+app.add_typer(integrations_app, name="integrations")
 
 
 def _build_report(from_path: Path) -> dict:
@@ -110,6 +118,44 @@ def _announce_review(dir_: Path) -> None:
     notice = review_notice(dir_)
     if notice:
         typer.echo(notice, err=True)
+
+
+@integrations_app.command("list")
+def integrations_list(
+    project: Path | None = typer.Option(None, "--project", help="Proyecto para checks locales"),
+):
+    """Lista integraciones AFP soportadas y su estado."""
+    home = Path.home()
+    typer.echo("name\tscope\tstatus")
+    for name, integration in sorted(INTEGRATIONS.items()):
+        status = status_for(name, home=home, project=project)
+        typer.echo(f"{name}\t{integration.scope}\t{status}")
+
+
+@integrations_app.command("install")
+def integrations_install(
+    name: str = typer.Argument(..., help="Integración: codex, claude-code, cursor, generic"),
+    global_: bool = typer.Option(False, "--global", help="Instalar en ubicación global de usuario"),
+    project: Path | None = typer.Option(None, "--project", help="Proyecto destino"),
+    out: Path | None = typer.Option(None, "--out", help="Fichero destino para bloques prompt"),
+    mode: str = typer.Option("copy", "--mode", help="copy o symlink"),
+    force: bool = typer.Option(False, "--force", help="Sobrescribir creando .bak"),
+):
+    """Instala una integración AFP desde recursos empaquetados."""
+    try:
+        destination = install_integration(
+            name,
+            home=Path.home(),
+            project=project,
+            global_=global_,
+            out=out,
+            force=force,
+            mode=mode,
+        )
+    except IntegrationError as exc:
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"OK: {name} instalado en {destination}")
 
 
 @app.command()
